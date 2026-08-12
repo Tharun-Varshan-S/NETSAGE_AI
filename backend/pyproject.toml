@@ -10,6 +10,7 @@ dependencies = [
     "pydantic",
     "pydantic-settings",
     "google-genai",
+    "requests",
     "pytest",
     "pytest-cov",
     "ruff",

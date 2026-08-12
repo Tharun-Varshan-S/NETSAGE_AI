@@ -2,33 +2,76 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.case import Case
-from app.schemas.diagnosis import DiagnosisResponse
+from app.schemas.diagnosis import DiagnosisResponse, CommandInput
 from app.services.ai_diagnosis import run_diagnosis
+from app.services.evidence_processor import EvidenceProcessor
+from app.services.rule_orchestrator import RuleOrchestrator
 
 router = APIRouter()
+
+def process_and_diagnose(case: Case, db: Session) -> DiagnosisResponse:
+    # 1. Process Evidence
+    evidence = EvidenceProcessor.process(case.symptom, case.topology_note, case.show_outputs)
+    
+    # 2. Run Rules
+    rule_findings = RuleOrchestrator.run_all(case.show_outputs, evidence)
+    
+    # 3. Ask AI
+    diagnosis_data = run_diagnosis(case, evidence, rule_findings)
+    
+    if diagnosis_data is None:
+        raise HTTPException(status_code=503, detail="AI diagnosis failed. Please proceed manually.")
+    
+    # 4. Save state
+    case.diagnosis_status = diagnosis_data.status
+    case.ai_root_cause = diagnosis_data.root_cause
+    case.ai_osi_layer = diagnosis_data.osi_layer
+    case.ai_confidence = diagnosis_data.confidence
+    case.ai_evidence = diagnosis_data.evidence
+    case.ai_reason = diagnosis_data.reason
+    case.ai_next_command = diagnosis_data.next_command
+    case.ai_fix_steps = diagnosis_data.fix_steps
+    case.ai_verification_command = diagnosis_data.verification_command
+    
+    # Optional: We could save the rule_findings to a new column if we wanted, 
+    # but the frontend can just receive it from this endpoint or we return it.
+    
+    db.commit()
+    db.refresh(case)
+    
+    # Attach findings for the frontend response
+    diagnosis_data.rule_findings = rule_findings
+    return diagnosis_data
 
 @router.post("/{case_id}", response_model=DiagnosisResponse)
 def diagnose_case(case_id: int, db: Session = Depends(get_db)):
     case = db.query(Case).filter(Case.id == case_id).first()
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
+        
+    return process_and_diagnose(case, db)
+
+@router.post("/{case_id}/command-output", response_model=DiagnosisResponse)
+def submit_command_output(case_id: int, input_data: CommandInput, db: Session = Depends(get_db)):
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+        
+    # Append to raw outputs for the EvidenceProcessor
+    new_output_text = f"\n\n--- Output of {input_data.command_executed} ---\n{input_data.output}"
+    case.show_outputs += new_output_text
     
-    # In a full implementation, we might run the deterministic checker here
-    # and attach its findings to the case before sending to the AI.
-    
-    diagnosis_data = run_diagnosis(case)
-    
-    if diagnosis_data is None:
-        raise HTTPException(status_code=503, detail="AI diagnosis failed. Please proceed manually.")
-    
-    # Save to db
-    case.ai_root_cause = diagnosis_data.root_cause
-    case.ai_confidence = diagnosis_data.confidence
-    case.ai_evidence = diagnosis_data.evidence
-    case.ai_next_command = diagnosis_data.next_command
-    case.ai_fix_steps = diagnosis_data.fix_steps
+    # Append to structured history for the AI prompt
+    history = case.session_history or []
+    # Make a copy since SQLAlchemy might not track deep mutations on JSON column easily
+    new_history = list(history)
+    new_history.append({
+        "command": input_data.command_executed,
+        "output": input_data.output
+    })
+    case.session_history = new_history
     
     db.commit()
     db.refresh(case)
     
-    return diagnosis_data
+    return process_and_diagnose(case, db)

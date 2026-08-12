@@ -42,7 +42,7 @@ def run_diagnosis(case: Case, max_retries: int = 3) -> Optional[Diagnosis]:
         try:
             # We enforce structured JSON output matching our Pydantic schema
             response = client.models.generate_content(
-                model='gemini-1.5-flash',
+                model='gemini-3.6-flash',
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",

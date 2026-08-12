@@ -1,0 +1,17 @@
+# Packet Tracer and PyTorch files
+*.pt
+*.pkt
+*.pka
+*.pkz
+
+# Python
+__pycache__/
+*.pyc
+.env
+.venv/
+venv/
+
+# Node
+node_modules/
+dist/
+build/

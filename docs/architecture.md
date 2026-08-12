@@ -6,7 +6,7 @@ NetSage AI is a troubleshooting assistant designed for Cisco-style network lab e
 ## Tech Stack
 - **Backend**: Python 3.12, FastAPI, SQLAlchemy 2.0 with SQLite.
 - **Frontend**: React with TypeScript, Vite, Tailwind CSS, Recharts, TanStack Query.
-- **AI Integration**: Google Gemini 1.5 Flash via `google-genai` SDK.
+- **AI Integration**: Google Gemini 3.6 Flash via `google-genai` SDK.
 
 ## Design Decisions
 

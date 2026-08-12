@@ -15,7 +15,7 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     issues_by_severity = {}
     
     for case in cases:
-        issues_by_type[case.concept_tag] = issues_by_type.get(case.concept_tag, 0) + 1
+        issues_by_type[case.category] = issues_by_type.get(case.category, 0) + 1
         issues_by_severity[case.severity] = issues_by_severity.get(case.severity, 0) + 1
         
     review_status_counts = {"Accepted": 0, "Edited": 0, "Rejected": 0}

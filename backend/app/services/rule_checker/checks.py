@@ -1,114 +1,163 @@
 import re
 from typing import Dict, List, Any
 
-def check_duplicate_ips(show_outputs: str) -> List[str]:
-    """
-    Checks for duplicate IP addresses in the show outputs.
-    Looks for typical duplicate address logs like '%IP-4-DUPADDR' or just counts IP assignments.
-    Since this is a simple string-based check, we'll look for duplicate assigned IPs in interface brief.
-    """
-    issues = []
-    
-    # If the log explicitly mentions a duplicate address
-    if "DUPADDR" in show_outputs or "Duplicate address" in show_outputs:
-        issues.append("Detected duplicate IP address warning in logs.")
+def check_duplicate_ips(show_outputs: str, evidence: Dict[str, Any]) -> Dict[str, Any]:
+    if not evidence.get("has_interface_data"):
+        return {
+            "rule": "DUPLICATE_IP",
+            "status": "INSUFFICIENT_EVIDENCE",
+            "evidence": [],
+            "reason": "Interface IP assignment information was not supplied."
+        }
         
-    # Extract all IP addresses from 'show ip interface brief' style output
-    # Exclude unassigned ones
-    ip_pattern = r"(?:FastEthernet|GigabitEthernet|Vlan|Serial)\d+(?:/\d+)*\s+((?:\d{1,3}\.){3}\d{1,3})"
-    matches = re.findall(ip_pattern, show_outputs)
-    
+    findings = []
+    if "DUPADDR" in show_outputs or "Duplicate address" in show_outputs:
+        findings.append("Detected duplicate IP address warning in logs.")
+        
     seen = set()
-    for ip in matches:
-        if ip != "unassigned":
+    for intf in evidence.get("interfaces", []):
+        ip = intf.get("ip")
+        if ip and ip != "unassigned":
             if ip in seen:
-                issues.append(f"Duplicate IP configured across interfaces: {ip}")
+                findings.append(f"Duplicate IP configured across interfaces: {ip}")
             seen.add(ip)
             
-    return issues
+    if findings:
+        return {
+            "rule": "DUPLICATE_IP",
+            "status": "DETECTED",
+            "severity": "HIGH",
+            "confidence": 1.0,
+            "evidence": findings,
+            "source": "show ip interface brief / logs"
+        }
+    return {"rule": "DUPLICATE_IP", "status": "NOT_DETECTED"}
 
-def check_wrong_masks(show_outputs: str) -> List[str]:
-    """
-    Checks for common wrong subnet masks (e.g., /8 where /24 is expected).
-    This is highly context-dependent, but we can look for suspicious masks like 255.0.0.0 on a 192.168.x.x address.
-    """
-    issues = []
-    # Pattern to match IP and mask: 'Internet address is 192.168.1.1/8' or '192.168.1.1 255.0.0.0'
+def check_wrong_masks(show_outputs: str, evidence: Dict[str, Any]) -> Dict[str, Any]:
+    # We can't strictly know if it's wrong without context, but we check for suspicious ones
+    if not show_outputs:
+        return {"rule": "WRONG_MASK", "status": "INSUFFICIENT_EVIDENCE", "evidence": [], "reason": "No CLI outputs provided."}
+        
+    findings = []
     ip_mask_pattern = r"((?:192\.168|172\.(?:1[6-9]|2[0-9]|3[0-1])|10\.)\.\d{1,3}\.\d{1,3})[/ ](?:255\.0\.0\.0|/8)"
     matches = re.findall(ip_mask_pattern, show_outputs)
     for ip in matches:
-        issues.append(f"Suspicious subnet mask for private IP {ip}: appears to be /8 (255.0.0.0) which is overly broad.")
+        findings.append(f"Suspicious subnet mask for private IP {ip}: appears to be /8 (255.0.0.0) which is overly broad.")
         
-    return issues
+    if findings:
+        return {
+            "rule": "WRONG_MASK",
+            "status": "DETECTED",
+            "severity": "MEDIUM",
+            "confidence": 0.8,
+            "evidence": findings,
+            "source": "show running-config / interfaces"
+        }
+    return {"rule": "WRONG_MASK", "status": "NOT_DETECTED"}
 
-def check_gateway_mismatch(show_outputs: str) -> List[str]:
-    """
-    Checks if a configured default gateway does not match the expected subnet.
-    We look for 'Default gateway is X' and see if it's reachable or valid.
-    """
-    issues = []
-    # Simple check: 'Gateway of last resort is not set' when it might be needed.
-    if "Gateway of last resort is not set" in show_outputs and "ip route 0.0.0.0 0.0.0.0" not in show_outputs:
-        # A bit simplistic, but highlights potential gateway missing issue
-        # Only relevant if we're a router needing a default route.
-        pass
+def check_gateway_mismatch(show_outputs: str, evidence: Dict[str, Any]) -> Dict[str, Any]:
+    if not evidence.get("has_routing_data"):
+         return {
+            "rule": "GATEWAY_MISMATCH",
+            "status": "INSUFFICIENT_EVIDENCE",
+            "evidence": [],
+            "reason": "Routing or gateway information was not supplied."
+        }
+    
+    findings = []
+    gateway = evidence.get("default_gateway")
+    if gateway == "NOT_SET":
+        findings.append("No default route is set (Gateway of last resort is not set).")
         
-    # Another common lab error: default gateway on PC is wrong. 
-    # Packet Tracer PC outputs: 'Default Gateway . . . . . . . . . : 192.168.1.254'
-    # We can't strictly determine mismatch without knowing the interface subnet, 
-    # but we can flag if there are multiple different gateways or if gateway IP matches device IP.
-    return issues
+    if findings:
+        return {
+            "rule": "GATEWAY_MISMATCH",
+            "status": "DETECTED",
+            "severity": "HIGH",
+            "confidence": 0.9,
+            "evidence": findings,
+            "source": "show ip route"
+        }
+    return {"rule": "GATEWAY_MISMATCH", "status": "NOT_DETECTED"}
 
-def check_interface_down(show_outputs: str) -> List[str]:
-    """
-    Checks for interfaces that are administratively down or line protocol is down.
-    """
-    issues = []
-    lines = show_outputs.split('\n')
-    for line in lines:
-        if "administratively down" in line:
-            issues.append(f"Interface is administratively down: {line.strip()}")
-        elif "down, line protocol is down" in line or (re.search(r"\bdown\b.*\bdown\b", line) and ("FastEthernet" in line or "GigabitEthernet" in line)):
-            # 'FastEthernet0/0 is down, line protocol is down'
-            issues.append(f"Interface is down/down: {line.strip()}")
-    return issues
+def check_interface_down(show_outputs: str, evidence: Dict[str, Any]) -> Dict[str, Any]:
+    if not evidence.get("has_interface_data"):
+        return {
+            "rule": "INTERFACE_DOWN",
+            "status": "INSUFFICIENT_EVIDENCE",
+            "evidence": [],
+            "reason": "Interface state information was not supplied."
+        }
+        
+    findings = []
+    for intf in evidence.get("interfaces", []):
+        if "down" in intf.get("status", "").lower() or "down" in intf.get("protocol", "").lower():
+            findings.append(f"Interface {intf['name']} is {intf['status']}/{intf['protocol']}")
+            
+    # Also check raw output for unparsed lines
+    for line in show_outputs.split('\n'):
+        if "administratively down" in line and not any("administratively down" in f for f in findings):
+            findings.append(f"Interface is administratively down: {line.strip()}")
+            
+    if findings:
+        return {
+            "rule": "INTERFACE_DOWN",
+            "status": "DETECTED",
+            "severity": "HIGH",
+            "confidence": 1.0,
+            "evidence": findings,
+            "source": "show ip interface brief"
+        }
+    return {"rule": "INTERFACE_DOWN", "status": "NOT_DETECTED"}
 
-def check_missing_vlan(show_outputs: str) -> List[str]:
-    """
-    Checks for missing VLANs, e.g. ports assigned to a VLAN that does not exist.
-    """
-    issues = []
+def check_missing_vlan(show_outputs: str, evidence: Dict[str, Any]) -> Dict[str, Any]:
+    if not evidence.get("has_vlan_data"):
+        return {
+            "rule": "MISSING_VLAN",
+            "status": "INSUFFICIENT_EVIDENCE",
+            "evidence": [],
+            "reason": "VLAN database information was not supplied."
+        }
+        
+    findings = []
     if "does not exist" in show_outputs and "VLAN" in show_outputs:
-         issues.append("A port is assigned to a VLAN that does not exist in the VLAN database.")
+         findings.append("A port is assigned to a VLAN that does not exist in the VLAN database.")
          
-    # Check if trunking is failing or vlan is inactive
-    if "inactive" in show_outputs.lower() and "vlan" in show_outputs.lower():
-         issues.append("A VLAN is marked as inactive.")
-    return issues
+    for vlan in evidence.get("vlans", []):
+        if vlan.get("status") == "suspend" or "inactive" in vlan.get("status", ""):
+            findings.append(f"VLAN {vlan['id']} ({vlan['name']}) is suspended/inactive.")
+            
+    if findings:
+        return {
+            "rule": "MISSING_VLAN",
+            "status": "DETECTED",
+            "severity": "HIGH",
+            "confidence": 1.0,
+            "evidence": findings,
+            "source": "show vlan brief"
+        }
+    return {"rule": "MISSING_VLAN", "status": "NOT_DETECTED"}
 
-def check_missing_routes(show_outputs: str) -> List[str]:
-    """
-    Checks for missing routes (e.g. no default route, or specific expected subnets not in routing table).
-    """
-    issues = []
-    if "show ip route" in show_outputs:
-        if "Gateway of last resort is not set" in show_outputs and not re.search(r"S\*\s+0\.0\.0\.0/0", show_outputs):
-             issues.append("No default route is set (Gateway of last resort is not set).")
-    return issues
-
-def run_all_checks(show_outputs: str) -> Dict[str, List[str]]:
-    """
-    Runs all deterministic checks on the provided show_outputs string.
-    Returns a dictionary of issue categories mapped to lists of specific issue strings.
-    """
-    if not show_outputs:
-        return {}
+def check_missing_routes(show_outputs: str, evidence: Dict[str, Any]) -> Dict[str, Any]:
+    if not evidence.get("has_routing_data"):
+        return {
+            "rule": "MISSING_ROUTES",
+            "status": "INSUFFICIENT_EVIDENCE",
+            "evidence": [],
+            "reason": "Routing table information was not supplied."
+        }
         
-    return {
-        "duplicate_ips": check_duplicate_ips(show_outputs),
-        "wrong_masks": check_wrong_masks(show_outputs),
-        "gateway_mismatch": check_gateway_mismatch(show_outputs),
-        "interface_down": check_interface_down(show_outputs),
-        "missing_vlan": check_missing_vlan(show_outputs),
-        "missing_routes": check_missing_routes(show_outputs),
-    }
+    findings = []
+    if evidence.get("default_gateway") == "NOT_SET" and len(evidence.get("routes", [])) == 0:
+        findings.append("Routing table is empty and no default gateway is set.")
+        
+    if findings:
+        return {
+            "rule": "MISSING_ROUTES",
+            "status": "DETECTED",
+            "severity": "MEDIUM",
+            "confidence": 0.8,
+            "evidence": findings,
+            "source": "show ip route"
+        }
+    return {"rule": "MISSING_ROUTES", "status": "NOT_DETECTED"}

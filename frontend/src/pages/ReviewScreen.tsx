@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchCase, diagnoseCase, submitReview } from '../api/client';
-import { ArrowLeft, Cpu, AlertTriangle, Info, Check, Edit2, X } from 'lucide-react';
+import { fetchCase, diagnoseCase, submitReview, submitCommandOutput } from '../api/client';
+import { ArrowLeft, Cpu, AlertTriangle, Info, Check, Edit2, X, TerminalSquare } from 'lucide-react';
 
 export default function ReviewScreen({ caseId, onBack }: { caseId: number, onBack: () => void }) {
   const queryClient = useQueryClient();
   const [reason, setReason] = useState('');
+  const [commandOutput, setCommandOutput] = useState('');
   
   const { data: caseData, isLoading } = useQuery({
     queryKey: ['cases', caseId],
@@ -15,6 +16,14 @@ export default function ReviewScreen({ caseId, onBack }: { caseId: number, onBac
   const diagnoseMutation = useMutation({
     mutationFn: () => diagnoseCase(caseId),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cases', caseId] });
+    }
+  });
+
+  const submitOutputMutation = useMutation({
+    mutationFn: () => submitCommandOutput(caseId, caseData.ai_next_command, commandOutput),
+    onSuccess: () => {
+      setCommandOutput('');
       queryClient.invalidateQueries({ queryKey: ['cases', caseId] });
     }
   });
@@ -30,10 +39,13 @@ export default function ReviewScreen({ caseId, onBack }: { caseId: number, onBac
   if (isLoading || !caseData) return <div className="p-8 text-center text-slate-500">Loading case details...</div>;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
       <div className="flex items-center gap-4">
         <button onClick={onBack} className="p-2 hover:bg-slate-200 text-slate-600 rounded-full transition"><ArrowLeft /></button>
-        <h1 className="text-2xl font-bold text-slate-800">Case #{caseId} Review</h1>
+        <h1 className="text-2xl font-bold text-slate-800">Case #{caseData.case_id} Review</h1>
+        <span className="bg-slate-200 px-3 py-1 rounded-full text-xs font-bold text-slate-600 uppercase tracking-wider">
+          Status: {caseData.diagnosis_status}
+        </span>
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -66,23 +78,77 @@ export default function ReviewScreen({ caseId, onBack }: { caseId: number, onBac
               <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                 <Cpu className="text-indigo-500" /> AI Diagnosis
               </h2>
-              {!caseData.ai_root_cause && (
+              {caseData.diagnosis_status === 'NEEDS_INFO' && !caseData.ai_next_command && (
                 <button 
                   onClick={() => diagnoseMutation.mutate()}
                   disabled={diagnoseMutation.isPending}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded font-medium disabled:opacity-50 transition"
                 >
-                  {diagnoseMutation.isPending ? 'Analyzing...' : 'Run AI Analysis'}
+                  {diagnoseMutation.isPending ? 'Analyzing...' : 'Run Initial Analysis'}
                 </button>
               )}
             </div>
 
-            {caseData.ai_root_cause ? (
+            {/* If AI wants more info */}
+            {caseData.diagnosis_status === 'NEEDS_INFO' && caseData.ai_next_command && (
+              <div className="space-y-4 bg-amber-50 border border-amber-200 p-4 rounded-lg">
+                <h3 className="font-bold text-amber-800 flex items-center gap-2">
+                  <TerminalSquare size={18} /> Insufficient Evidence
+                </h3>
+                <p className="text-sm text-amber-700">The AI needs more information to confidently diagnose the root cause.</p>
+                
+                <div>
+                  <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">Please Run This Command:</span>
+                  <div className="font-mono text-sm bg-slate-900 text-green-400 p-2 rounded mt-1">
+                    {caseData.ai_next_command}
+                  </div>
+                </div>
+                
+                {caseData.ai_reason && (
+                  <div className="mt-2">
+                    <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">Reason:</span>
+                    <p className="text-sm text-slate-700 mt-1 italic">{caseData.ai_reason}</p>
+                  </div>
+                )}
+
+                <div className="mt-4">
+                  <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Paste Output Here:</span>
+                  <textarea 
+                    className="w-full border border-slate-300 rounded p-2 text-sm mt-1 font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
+                    rows={4}
+                    value={commandOutput}
+                    onChange={e => setCommandOutput(e.target.value)}
+                  />
+                  <button 
+                    onClick={() => submitOutputMutation.mutate()}
+                    disabled={submitOutputMutation.isPending || !commandOutput.trim()}
+                    className="mt-2 w-full bg-slate-800 hover:bg-slate-900 text-white font-medium py-2 rounded disabled:opacity-50 transition"
+                  >
+                    {submitOutputMutation.isPending ? 'Processing...' : 'Submit Output to AI'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* If AI has a diagnosis */}
+            {['DIAGNOSED', 'RESOLVED', 'NOT_RESOLVED'].includes(caseData.diagnosis_status) && caseData.ai_root_cause && (
               <div className="space-y-4">
                 <div>
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Root Cause</span>
                   <p className="text-slate-800 font-medium">{caseData.ai_root_cause}</p>
                 </div>
+                {caseData.ai_osi_layer && (
+                  <div>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">OSI Layer</span>
+                    <p className="text-slate-700 text-sm">{caseData.ai_osi_layer}</p>
+                  </div>
+                )}
+                {caseData.ai_reason && (
+                  <div>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Reasoning</span>
+                    <p className="text-slate-700 text-sm italic border-l-2 border-indigo-200 pl-2 mt-1">{caseData.ai_reason}</p>
+                  </div>
+                )}
                 <div className="flex gap-4">
                   <div>
                     <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Confidence</span>
@@ -94,18 +160,19 @@ export default function ReviewScreen({ caseId, onBack }: { caseId: number, onBac
                   </div>
                 </div>
                 <div>
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Next Command</span>
-                  <p className="font-mono text-sm bg-slate-100 p-1 rounded inline-block text-slate-800 mt-1">{caseData.ai_next_command}</p>
-                </div>
-                <div>
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fix Steps</span>
-                  <p className="text-slate-700 text-sm mt-1 whitespace-pre-wrap">{caseData.ai_fix_steps}</p>
+                  <div className="bg-slate-50 p-3 rounded border border-slate-200">
+                    <p className="text-slate-800 text-sm whitespace-pre-wrap font-mono">{caseData.ai_fix_steps}</p>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="text-center py-12 text-slate-400">
-                <Cpu size={48} className="mx-auto mb-4 opacity-20" />
-                <p>No diagnosis generated yet.</p>
+                {caseData.ai_verification_command && (
+                  <div>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Verification Command</span>
+                    <div className="bg-slate-900 text-green-400 font-mono text-sm p-2 rounded mt-1">
+                      {caseData.ai_verification_command}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -115,7 +182,7 @@ export default function ReviewScreen({ caseId, onBack }: { caseId: number, onBac
             <div className="space-y-4">
               <textarea 
                 className="w-full border border-slate-300 bg-slate-50 rounded p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
-                placeholder="Reason for editing or rejecting (optional for Accept)"
+                placeholder="Reason for editing or rejecting. If editing, explain the correction."
                 value={reason}
                 onChange={e => setReason(e.target.value)}
                 rows={3}
@@ -130,15 +197,17 @@ export default function ReviewScreen({ caseId, onBack }: { caseId: number, onBac
                 </button>
                 <button 
                   onClick={() => reviewMutation.mutate('Edited')}
-                  disabled={reviewMutation.isPending}
+                  disabled={reviewMutation.isPending || !reason.trim()}
                   className="flex-1 flex items-center justify-center gap-2 bg-amber-100 hover:bg-amber-200 text-amber-800 font-semibold py-2 rounded transition disabled:opacity-50"
+                  title="Must provide a reason to mark as Edited"
                 >
                   <Edit2 size={18} /> Edit
                 </button>
                 <button 
                   onClick={() => reviewMutation.mutate('Rejected')}
-                  disabled={reviewMutation.isPending}
+                  disabled={reviewMutation.isPending || !reason.trim()}
                   className="flex-1 flex items-center justify-center gap-2 bg-red-100 hover:bg-red-200 text-red-800 font-semibold py-2 rounded transition disabled:opacity-50"
+                  title="Must provide a reason to Reject"
                 >
                   <X size={18} /> Reject
                 </button>

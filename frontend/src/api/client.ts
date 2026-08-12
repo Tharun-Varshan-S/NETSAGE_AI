@@ -16,6 +16,16 @@ export const diagnoseCase = async (id: number) => {
     return res.json();
 };
 
+export const submitCommandOutput = async (id: number, command_executed: string, output: string) => {
+    const res = await fetch(`${API_BASE}/diagnose/${id}/command-output`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command_executed, output })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+};
+
 export const submitReview = async (id: number, status: string, reason: string) => {
     const res = await fetch(`${API_BASE}/reviews/${id}`, {
         method: 'POST',

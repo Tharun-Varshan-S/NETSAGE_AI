@@ -1,0 +1,341 @@
+case_id,category,difficulty,diagnosis_type,symptoms,topology,show_outputs,expected_fault,osi_layer,concept,severity,expected_next_command,expected_fix,verification_command
+NC001,VLAN,Easy,Deterministic,User on PC-ACCT-04 in Accounting cannot access the internal payroll application on 10.20.10.50. She says her network icon shows connected but she cannot open the webpage or ping the server.,"Switch SW-ACCESS-BUILDING2 interface GigabitEthernet0/5 connects to PC-ACCT-04. Accounting devices are required to be on VLAN 20 (10.20.20.0/24), while payroll servers reside on VLAN 10 (10.20.10.0/24).","SW-ACCESS-BUILDING2# show vlan brief
+
+VLAN Name                             Status    Ports
+---- -------------------------------- --------- -------------------------------
+1    default                          active    Gi0/1, Gi0/3, Gi0/4, Gi0/5, Gi0/6
+10   Data_Servers                     active    Gi0/2
+20   Accounting                       active    Gi0/7, Gi0/8
+
+SW-ACCESS-BUILDING2# show interface GigabitEthernet0/5 switchport
+Name: Gi0/5
+Administrative Mode: dynamic auto
+Operational Mode: static access
+Administrative Trunking Encapsulation: negotiate
+Negotiation of Trunking: On
+Access Mode VLAN: 1 (default)",Interface GigabitEthernet0/5 on switch SW-ACCESS-BUILDING2 is assigned to the default VLAN 1 instead of Accounting VLAN 20.,Layer 2 Data Link,vlan_mismatch,High,switchport access vlan 20,Configure Gi0/5 as an access port in VLAN 20.,show vlan brief; show interfaces switchport; ping 10.20.10.50
+NC002,VLAN,Medium,Deterministic,"NOC monitor flagged recurring syslog warnings on SW-CORE-01: '%CDP-4-NATIVE_VLAN_MISMATCH: Native VLAN mismatch discovered on GigabitEthernet0/1 (1), with SW-ACCESS-01 GigabitEthernet0/1 (99)'. Traffic between switches is dropping intermittently.",Trunk link between core switch SW-CORE-01 and access switch SW-ACCESS-01 over interface GigabitEthernet0/1. The management policy dictates Native VLAN 99 for untagged control traffic across all trunks.,"SW-CORE-01# show interfaces trunk
+
+Port        Mode         Encapsulation  Status        Native vlan
+Gi0/1       on           802.1q         trunking      1
+
+SW-ACCESS-01# show interfaces trunk
+
+Port        Mode         Encapsulation  Status        Native vlan
+Gi0/1       on           802.1q         trunking      99",Native VLAN mismatch on the trunk link between SW-CORE-01 (VLAN 1) and SW-ACCESS-01 (VLAN 99) on interface GigabitEthernet0/1.,Layer 2 Data Link,vlan_native_mismatch,Medium,switchport trunk native vlan 99,Configure native VLAN 99 on both trunk ends.,show interfaces trunk; verify native VLAN 99 on both ends
+NC003,VLAN,Medium,Deterministic,"Executive desk phone (VoIP) in Branch 3 shows 'Configuring IP...' indefinitely. The PC plugged into the back of the phone works fine on VLAN 15, but phone traffic on VLAN 30 fails.",Switch SW-BR3-ACC01 connects to router R-BR3 over trunk interface Gi0/1. Data uses VLAN 15 (172.16.15.0/24) and Voice uses VLAN 30 (172.16.30.0/24).,"SW-BR3-ACC01# show interfaces GigabitEthernet0/1 switchport
+Name: Gi0/1
+Administrative Mode: trunk
+Operational Mode: trunk
+Administrative Native VLAN tagging: enabled
+Voice VLAN: none
+Trunking VLANs Enabled: 10,15,20
+
+SW-BR3-ACC01# show interfaces trunk
+Port        Mode         Encapsulation  Status        Native vlan
+Gi0/1       on           802.1q         trunking      1
+Port        VLANs allowed on trunk
+Gi0/1       10,15,20",Trunk interface GigabitEthernet0/1 on SW-BR3-ACC01 has an allowed VLAN list that explicitly excludes Voice VLAN 30.,Layer 2 Data Link,vlan_trunk_pruned,High,switchport trunk allowed vlan add 30,Add VLAN 30 to the trunk allowed VLAN list.,show interfaces trunk; verify VLAN 30 is allowed; verify phone DHCP
+NC004,Gateway,Easy,Deterministic,Newly imaged workstation PC-ENG-12 cannot access intranet servers or external websites. The user can ping other computers in the same room (192.168.10.0/24) but nothing outside.,PC-ENG-12 is on subnet 192.168.10.0/24. The default gateway interface on core router R1-HQ is GigabitEthernet0/0/0 configured with IP 192.168.10.1.,"C:\> ipconfig /all
+
+Windows IP Configuration
+   Host Name . . . . . . . . . . . . : PC-ENG-12
+   IPv4 Address. . . . . . . . . . . : 192.168.10.45(Preferred) 
+   Subnet Mask . . . . . . . . . . . : 255.255.255.0
+   Default Gateway . . . . . . . . . : 192.168.10.254
+   DNS Servers . . . . . . . . . . . : 10.0.0.2
+
+C:\> ping 192.168.10.1
+Request timed out.
+C:\> ping 192.168.10.254
+Destination host unreachable.",Workstation PC-ENG-12 is statically configured with an incorrect default gateway IP (192.168.10.254 instead of 192.168.10.1).,Layer 3 Network,gateway_misconfig,High,ipconfig,Change the workstation default gateway to 192.168.10.1.,ipconfig /all; ping 192.168.10.1; ping 10.20.10.50
+NC005,Gateway,Medium,Deterministic,"Application Server SRV-APP-02 is experiencing erratic connectivity. It can reach some local hosts in the 10.100.4.0 range, but fails to respond to ping from client hosts in 10.100.4.140/25.",Server SRV-APP-02 is connected to R-DC-01 interface Gi0/0/1. The subnet allocated for this DMZ segment is 10.100.4.0/24 (255.255.255.0).,"R-DC-01# show running-config interface GigabitEthernet0/0/1
+Building configuration...
+Current configuration : 150 bytes
+!
+interface GigabitEthernet0/0/1
+ description DMZ_App_Segment
+ ip address 10.100.4.1 255.255.255.128
+ end
+
+SRV-APP-02 Network Config:
+IP: 10.100.4.50
+Netmask: 255.255.255.0
+Gateway: 10.100.4.1","Subnet mask mismatch between router interface Gi0/0/1 (255.255.255.128) and server SRV-APP-02 (255.255.255.0), causing the router to drop traffic for hosts above .127.",Layer 3 Network,subnet_mask_mismatch,Critical,show ip interface GigabitEthernet0/0/1,Make the router/server subnet masks consistent with the intended 10.100.4.0/24 subnet.,show ip interface Gi0/0/1; test hosts across the subnet boundary
+NC006,Gateway,Easy,Deterministic,Users in the Legal department report intermittent network drops. Syslog on core router R-CORE displays repeated duplicate IP address notifications for 10.50.1.1.,Router R-CORE interface Gi0/0/0 serves as gateway 10.50.1.1/24 for the Legal VLAN. A technician recently installed a networked multifunction printer PRT-LEGAL-01.,"R-CORE# show logging | include Duplicate
+%IP-4-DUPADDR: Duplicate datagram on GigabitEthernet0/0/0, sourced by 0015.fa2b.88c10015.fa2b.88c1
+
+R-CORE# show arp | include 10.50.1.1
+Protocol  Address          Age (min)  Hardware Addr   Type   Interface
+Internet  10.50.1.1               -   0007.EC12.A001  ARPA   GigabitEthernet0/0/0
+Internet  10.50.1.1               0   0015.FA2B.88C1  ARPA   GigabitEthernet0/0/0",Duplicate IP address conflict on default gateway IP 10.50.1.1 caused by newly deployed printer PRT-LEGAL-01 configured statically with the gateway's IP.,Layer 3 Network,duplicate_ip,Critical,show arp,Remove the duplicate 10.50.1.1 address from the printer.,show arp; show logging | include DUPADDR; verify unique IPs
+NC007,DHCP,Medium,Deterministic,Monday morning users in the Call Center (VLAN 40) are unable to access any network resources or internet. IPConfig shows addresses starting with 169.254.x.x.,Call Center workstations pull IP addresses from DHCP server SRV-DHCP-01 via DHCP relay on router R-CAMPUS interface Gi0/0/0.40. Pool size is 100 addresses (172.20.40.10 to 172.20.40.110).,"SRV-DHCP-01# show ip dhcp binding
+Bindings from all pools: 100 total bindings.
+
+R-CAMPUS# show ip dhcp pool CALL_CENTER
+Pool CALL_CENTER :
+ Total addresses       : 100
+ Leased addresses      : 100
+ Pending addresses     : 0
+ Failed addresses      : 0
+ Subnet size index     : 255.255.255.0","DHCP scope exhaustion in the CALL_CENTER pool on SRV-DHCP-01; all 100 leases are active, causing new clients to fail over to APIPA (169.254.x.x).",Layer 7 Application,dhcp_scope_exhaustion,High,show ip dhcp pool,Increase/reclaim DHCP scope capacity after confirming required leases.,show ip dhcp pool; obtain a new client lease
+NC008,DHCP,Medium,Deterministic,All laptops connected to switch SW-BRANCH2 on VLAN 25 fail to acquire an IP address from the corporate central DHCP server (10.10.10.5). They timeout and assign APIPA addresses.,Branch router R-BR2 acts as the layer 3 gateway for VLAN 25 on subinterface Gi0/0/0.25 (192.168.25.1/24). Central DHCP server resides across a WAN link at 10.10.10.5.,"R-BR2# show running-config interface GigabitEthernet0/0/0.25
+Building configuration...
+!
+interface GigabitEthernet0/0/0.25
+ encapsulation dot1Q 25
+ ip address 192.168.25.1 255.255.255.0
+end","Missing `ip helper-address 10.10.10.5` configuration on router subinterface GigabitEthernet0/0/0.25, preventing DHCP broadcast forwarding across the layer 3 boundary.",Layer 3 Network,dhcp_relay_missing,High,show running-config interface GigabitEthernet0/0/0.25,Add ip helper-address 10.10.10.5 to Gi0/0/0.25.,show running-config interface Gi0/0/0.25; renew DHCP lease
+NC009,DHCP,Hard,Deterministic,"A static network monitoring appliance MON-SVR-01 (192.168.1.15) suddenly lost network connection. Ping to 192.168.1.15 responds, but MAC address lookup reveals a laptop MAC instead of the appliance.",LAN subnet is 192.168.1.0/24. Router R-GW provides DHCP services for dynamic clients. Static servers are assigned IPs from 192.168.1.2 through 192.168.1.20.,"R-GW# show running-config | section dhcp
+ip dhcp excluded-address 192.168.1.1 192.168.1.10
+!
+ip dhcp pool LAN_POOL
+ network 192.168.1.0 255.255.255.0
+ default-router 192.168.1.1
+ dns-server 8.8.8.8
+
+R-GW# show ip dhcp binding | include 192.168.1.15
+192.168.1.15        0100.21ccc.88a1.2b    Nov 14 2026 08:30 AM    Automatic","DHCP excluded-address range (192.168.1.1 - 192.168.1.10) is too small, allowing the DHCP pool to issue static server IP 192.168.1.15 to a dynamic wireless client.",Layer 7 Application,dhcp_excluded_range,High,ip dhcp excluded-address 192.168.1.1 192.168.1.30,Expand the DHCP excluded range to protect static server addresses.,show ip dhcp binding; verify 192.168.1.15 is reserved
+NC010,DNS,Medium,Deterministic,"Remote VPN users connected via Cisco AnyConnect report they can ping internal IP addresses like 10.8.0.25 but cannot open internal websites using domain names (e.g., portal.corp.local).","VPN Gateway ASA-5515 hands out network configurations to remote clients. Internal DNS server is 10.8.0.2 (DC-DNS-01), but public DNS 8.8.8.8 cannot resolve internal .local domains.","ASA-5515# show running-config group-policy RA_VPN_Policy
+group-policy RA_VPN_Policy internal
+group-policy RA_VPN_Policy attributes
+ dns-server value 8.8.8.8 8.8.4.4
+ default-domain value corp.local
+ split-tunnel-policy tunnelall","The VPN Group Policy is configured with public DNS servers (8.8.8.8) instead of the internal DNS server (10.8.0.2), causing internal domain resolution failures.",Layer 7 Application,dns_server_unreachable,High,show running-config group-policy,Configure the VPN policy to use internal DNS 10.8.0.2.,nslookup portal.corp.local from a VPN client
+NC011,DNS,Easy,Deterministic,"Marketing staff cannot load the new internal media server at `media.company.com`. However, when the IP address `10.50.100.88` is typed directly into the web browser, the site loads instantly.",Workstations use internal DNS server 10.50.1.10. The media server was provisioned yesterday on IP 10.50.100.88 in the server farm.,"C:\> nslookup media.company.com 10.50.1.10
+Server:  dc1-dns.company.com
+Address:  10.50.1.10
+
+*** dc1-dns.company.com can't find media.company.com: Non-existent domain
+
+C:\> ping 10.50.100.88
+Pinging 10.50.100.88 with 32 bytes of data:
+Reply from 10.50.100.88: bytes=32 time=2ms TTL=128",Missing host A record for `media.company.com` on the primary internal DNS server (10.50.1.10).,Layer 7 Application,dns_missing_record,Medium,show running-config,Create the missing A record media.company.com → 10.50.100.88.,nslookup media.company.com 10.50.1.10; browse by hostname
+NC012,Routing,Easy,Deterministic,HQ warehouse systems cannot transfer inventory files to Branch 5 subnet 172.16.50.0/24. Traceroute from HQ Router R-HQ stops at the WAN edge router R-WAN-01.,HQ LAN is 10.10.0.0/16. WAN Router R-WAN-01 connects HQ to multiple branches over point-to-point serial links. Branch 5 is attached via Serial0/1/0 (10.255.5.2/30).,"R-WAN-01# show ip route 172.16.50.0
+% Network not in routing table
+
+R-WAN-01# show ip route | include 172.16.
+S    172.16.10.0/24 [1/0] via 10.255.1.2
+S    172.16.20.0/24 [1/0] via 10.255.2.2
+S    172.16.30.0/24 [1/0] via 10.255.3.2
+S    172.16.40.0/24 [1/0] via 10.255.4.2",Missing static or dynamic route entry on R-WAN-01 for Branch 5 destination subnet 172.16.50.0/24.,Layer 3 Network,routing_missing_route,High,ip route 172.16.50.0 255.255.255.0 Serial0/1/0,Add a route for 172.16.50.0/24.,show ip route 172.16.50.0; ping branch host
+NC013,Routing,Hard,AI Reasoning,OSPF routing protocol failed between Core Router R-DC1 and Distribution Router R-DIST2. Routes from Data Center 2 are missing from the global routing table across the campus.,R-DC1 and R-DIST2 connect over a point-to-point GigabitEthernet link (10.254.1.0/30) in OSPF Area 0.,"R-DC1# show ip ospf neighbor
+
+Neighbor ID     Pri   State           Dead Time   Address         Interface
+192.168.255.2     1   EXSTART/DR      00:00:33    10.254.1.2      GigabitEthernet0/0/0
+
+R-DC1# show ip ospf interface GigabitEthernet0/0/0 | include MTU
+  Interface MTU 1500, NBR MTU 1400, Protocol MTU check Enabled
+
+R-DIST2# show interface GigabitEthernet0/0/1 | include MTU
+  MTU 1400 bytes, BW 1000000 Kbit/sec",OSPF neighbor adjacency is stuck in EXSTART state due to an IP MTU mismatch between R-DC1 (MTU 1500) and R-DIST2 (MTU 1400) on the interconnect link.,Layer 3 Network,routing_ospf_neighbor_down,Critical,show ip ospf interface,Make OSPF-facing interface MTUs consistent.,show ip ospf neighbor; verify FULL; show ip route
+NC014,Routing,Hard,Deterministic,Traffic destined for the backup cloud datacenter (192.168.200.0/24) is being dropped at the edge router R-EDGE-01. Pings to 192.168.200.1 fail with ICMP Host Unreachable.,"Router R-EDGE-01 connects to ISP-1 on interface Gi0/0/0 (10.1.1.1/30, Next-hop 10.1.1.2) and ISP-2 on Gi0/0/1 (10.2.2.1/30, Next-hop 10.2.2.2). ISP-2 link is currently down.","R-EDGE-01# show ip route static
+S    192.168.200.0/24 [1/0] via 10.2.2.2
+
+R-EDGE-01# show ip interface brief | include GigabitEthernet0/0/1
+GigabitEthernet0/0/1   10.2.2.1        YES NVRAM  down                  down","Static route for 192.168.200.0/24 points to dead next-hop IP 10.2.2.2 on interface Gi0/0/1, lacking a floating static backup route via ISP-1 (10.1.1.2).",Layer 3 Network,routing_wrong_nexthop,High,show ip route 192.168.200.0,Restore ISP-2 or configure a valid floating backup route via ISP-1.,show ip route 192.168.200.0; verify interface/path
+NC015,ACL,Medium,Deterministic,"Web server SRV-WEB-01 (10.10.50.10) cannot be accessed from the external internet on HTTP port 80 or HTTPS port 443, despite NAT rules being verified active on Edge Router R-EDGE.",Edge router R-EDGE interface GigabitEthernet0/0/0 faces the outside internet. An access list named OUTSIDE-IN is applied on Gi0/0/0.,"R-EDGE# show running-config interface GigabitEthernet0/0/0
+interface GigabitEthernet0/0/0
+ ip address 203.0.113.1 255.255.255.252
+ ip access-group OUTSIDE-IN out
+ ip nat outside
+
+R-EDGE# show ip access-lists OUTSIDE-IN
+Extended IP access list OUTSIDE-IN
+    10 permit tcp any host 10.10.50.10 eq www
+    20 permit tcp any host 10.10.50.10 eq 443",Access control list OUTSIDE-IN is applied in the wrong direction (`out` instead of `in`) on outside interface GigabitEthernet0/0/0.,Layer 4 Transport,acl_direction_wrong,High,show running-config interface,Apply OUTSIDE-IN in the correct inbound direction on the outside interface.,show running-config interface Gi0/0/0; test inbound HTTP/HTTPS
+NC016,ACL,Medium,Deterministic,"Finance department workstation (10.30.1.15) can ping the internal gateway, but cannot establish SSH connections (port 22) or web traffic to the PCI database server (10.30.99.5).",Router R-SEC-01 filters traffic between Finance VLAN (10.30.1.0/24) and Secure DB Subnet (10.30.99.0/24) using extended Access List 115.,"R-SEC-01# show ip access-lists 115
+Extended IP access list 115
+    10 permit tcp host 10.30.1.15 host 10.30.99.5 eq 1433
+    20 permit icmp 10.30.1.0 0.0.0.255 10.30.99.0 0.0.0.255
+
+R-SEC-01# show access-lists 115 matches
+Extended IP access list 115
+    10 permit tcp host 10.30.1.15 host 10.30.99.5 eq 1433
+    20 permit icmp 10.30.1.0 0.0.0.255 10.30.99.0 0.0.0.255 (45 matches)
+    30 implicit deny ip any any (1284 matches)","Access List 115 lacks a permit statement for SSH (TCP 22) or HTTP/HTTPS traffic, causing implicit deny to drop all non-SQL/ICMP packets from 10.30.1.15.",Layer 3 Network,acl_implicit_deny,High,show ip access-lists 115,Permit required SSH and web traffic before the implicit deny.,show ip access-lists 115; test SSH and web
+NC017,ACL,Medium,Deterministic,"System administrator laptop (10.100.10.50) is blocked from accessing switch management interface 10.100.255.1 via SSH, even though a permit line was added for her specific IP address.",Access list MGMT-BLOCK is applied in on VTY lines 0 15 of switch SW-CORE-01.,"SW-CORE-01# show ip access-lists MGMT-BLOCK
+Standard IP access list MGMT-BLOCK
+    10 deny   10.100.10.0, wildcard bits 0.0.0.255
+    20 permit host 10.100.10.50
+    30 permit 10.200.0.0, wildcard bits 0.0.255.255
+
+SW-CORE-01# show line vty 0 15
+Line Location False   Type
+ 0-15                 VTY
+Access class MGMT-BLOCK in",ACL rule ordering issue: General deny statement for subnet 10.100.10.0/24 at sequence 10 evaluates before specific permit rule for host 10.100.10.50 at sequence 20.,Layer 4 Transport,acl_rule_order,Medium,no ip access-list standard MGMT-BLOCK,Reorder the ACL so the specific host permit is evaluated before the subnet deny.,show ip access-lists MGMT-BLOCK; test SSH
+NC018,NAT,Easy,Deterministic,"Users in the 192.168.100.0/24 subnet cannot open any external websites. The router connected to the ISP shows active outbound traffic, but return packets are not coming back across the link.",Border router R-BORDER translates internal private IPs to public IP 203.0.113.5 on interface Gi0/0/1 facing ISP.,"R-BORDER# show running-config | include nat
+ip nat inside source list NAT_ACL interface GigabitEthernet0/0/1
+ip nat inside
+ip nat outside
+
+R-BORDER# show ip access-lists NAT_ACL
+Standard IP access list NAT_ACL
+    10 permit 192.168.100.0, wildcard bits 0.0.0.255
+
+R-BORDER# show ip nat translations
+R-BORDER#","NAT configuration missing the `overload` keyword at the end of `ip nat inside source list NAT_ACL interface GigabitEthernet0/0/1`, preventing Port Address Translation (PAT).",Layer 3 Network,nat_missing_overload,Critical,ip nat inside source list NAT_ACL interface GigabitEthernet0/0/1 overload,Add overload to the NAT inside-source rule to enable PAT.,show ip nat translations; test multiple inside hosts
+NC019,NAT,Medium,Deterministic,"Branch office expanded by adding new subnet 10.88.20.0/24 for new hire workstations. These new hosts can communicate internally, but get no response when trying to reach internet destinations.",Branch router R-BR-GW translates internal traffic using NAT ACL 105 to public interface Serial0/0/0.,"R-BR-GW# show ip access-lists 105
+Extended IP access list 105
+    10 permit ip 10.88.10.0 0.0.0.255 any
+
+R-BR-GW# show running-config | include ip nat
+ip nat inside source list 105 interface Serial0/0/0 overload
+
+R-BR-GW# show ip interface brief
+GigabitEthernet0/0/0   10.88.10.1      YES NVRAM  up                    up
+GigabitEthernet0/0/1   10.88.20.1      YES NVRAM  up                    up",Access list 105 used by NAT source translation list does not include permit entry for newly added subnet 10.88.20.0/24.,Layer 3 Network,nat_acl_mismatch,High,access-list 105 permit ip 10.88.20.0 0.0.0.255 any,Add 10.88.20.0/24 to NAT ACL 105.,show access-lists 105; show ip nat translations
+NC020,NAT,Hard,Deterministic,"During peak hours (2:00 PM), employees across the enterprise report that opening new web pages fails with 'Connection Timed Out', though established file downloads continue functioning normally.","Edge Router R-NAT-POOL translates 5,000 internal hosts to a small dynamic public NAT pool containing two IP addresses: 198.51.100.10 - 198.51.100.11.","R-NAT-POOL# show ip nat statistics
+Total active translations: 131070 (0 static, 131070 dynamic; 131070 extended)
+Outside interfaces: GigabitEthernet0/0/0
+Inside interfaces: GigabitEthernet0/0/1
+Hits: 9845210  Misses: 45210
+Expired translations: 41200
+Dynamic mappings:
+-- Inside Source
+access-list 100 pool PUBLIC_POOL refcount 131070
+ pool PUBLIC_POOL: netmask 255.255.255.252
+	start 198.51.100.10 end 198.51.100.11
+	type generic, total addresses 2, allocated 2 (100%)
+
+R-NAT-POOL# show logging | include NAT
+%NAT-3-ALLOC_FAIL: Port allocation failed for source 10.1.5.88","PAT port allocation exhaustion on the two-address public NAT pool (131,070 max translation limit reached), causing new connection requests to drop.",Layer 3 Network,nat_pool_exhaustion,Critical,show ip nat statistics,Increase NAT capacity by expanding the pool and/or using PAT.,show ip nat statistics; test new sessions
+NC021,Wireless,Medium,Deterministic,Visitors connected to the `Company-Guest` Wi-Fi SSID are able to ping internal corporate file servers (10.10.1.50) and view sensitive internal share folders.,"Cisco WLC 3504 handles wireless SSIDs. Guest traffic is intended to be isolated on VLAN 99 (172.31.99.0/24), while Corporate Data sits on VLAN 10 (10.10.1.0/24).","WLC-3504# show wlan 2
+WLAN Identifier.................................. 2
+Profile Name..................................... Corp-Guest-WLAN
+SSID............................................. Company-Guest
+Status........................................... Enabled
+Interface Name................................... management (VLAN 10)
+Security Policy.................................. [Open]
+
+WLC-3504# show interface summary
+Interface Name       VLAN ID       IP Address       Type
+management           10            10.10.1.10       Static
+guest-vlan           99            172.31.99.1      Static",SSID `Company-Guest` is mapped to the `management` interface (VLAN 10) instead of the `guest-vlan` interface (VLAN 99) on the Wireless LAN Controller.,Layer 2 Data Link,wireless_vlan_mapping,Critical,config wlan interface 2 guest-vlan,Map Company-Guest to guest VLAN 99 and maintain guest isolation.,show wlan 2; verify guest VLAN 99; test corporate access is blocked
+NC022,Wireless,Medium,Deterministic,Contractors connected to the Guest Wi-Fi network report they can see and access other contractor laptops via peer-to-peer file sharing and network scanning tools.,Guest Wi-Fi network operates on Autonomous AP AIR-AP1852. Guest policy dictates strict isolation so wireless clients cannot communicate with each other.,"AIR-AP1852# show running-config interface Dot11Radio0
+building configuration...
+!
+interface Dot11Radio0
+ encryption mode ciphers aes-ccm 
+ ssid Guest-Net
+ !
+ station-role root
+end
+
+AIR-AP1852# show wlan | include Isolation
+Client Peer-to-Peer Isolation: Disabled","Wireless client peer-to-peer isolation is disabled on the AP radio interface, permitting guest Wi-Fi clients to communicate directly with each other.",Layer 2 Data Link,wireless_isolation_disabled,High,bridge-group 1 subscriber-loop-control,Enable wireless client peer-to-peer isolation using the platform-supported setting.,verify wireless client isolation; test client-to-client access
+NC023,Wireless,Hard,AI Reasoning,Forklift drivers in the warehouse report their handheld barcode scanners keep dropping connection for 10-15 seconds every time they drive past Bay 4 toward Bay 5.,"Warehouse WAPs AP-BAY4 and AP-BAY5 are managed by WLC-CORE. Coverage check shows strong signal (-55 dBm) across both bays, but client logs show rapid disconnect/reconnect cycles.","WLC-CORE# show client detail 00:24:b2:88:11:00
+Client MAC Address............................... 00:24:b2:88:11:00
+AP Name.......................................... AP-BAY4
+AP Signal Strength............................... -82 dBm
+AP Signal-to-Noise Ratio......................... 12 dB
+Current Rate..................................... 54.0 Mbps
+Reason Code...................................... 4 (Disassociated due to inactivity)
+
+WLC-CORE# show ap config general AP-BAY5 | include Rate
+802.11a Mandatory Rates.......................... 54 Mbps
+802.11a Disabled Rates........................... 6, 9, 12, 18, 24, 36, 48 Mbps","WAP configuration sets 54 Mbps as a mandatory minimum basic rate, forcing handheld clients to drop off prematurely when roaming rather than shifting down to lower data rates.",Layer 1 Physical,wireless_signal_roaming,Medium,config 802.11a rate 54 disabled,Use appropriate lower mandatory/basic rates to improve roaming stability.,show client detail; verify stable roaming
+NC024,Routing,Hard,Ambiguous,User at 10.10.1.50 cannot reach web server at 10.20.1.100. Junior admin reports 'It could be an ACL blocking port 80 or a missing route on R2 back to 10.10.1.0/24'.,R1 connects LAN 10.10.1.0/24 to R2 across WAN link 172.16.0.0/30. Web server is on R2 LAN 10.20.1.0/24. Extended ACL 101 is applied on R1 Gi0/0/0.,"R1# show ip access-lists 101
+Extended IP access list 101
+    10 permit tcp 10.10.1.0 0.0.0.255 host 10.20.1.100 eq www (120 matches)
+    20 permit ip any any (500 matches)
+
+R2# show ip route 10.10.1.0
+% Network not in routing table
+
+R2# show ip route
+Gateway of last resort is not set
+C    10.20.1.0/24 is directly connected, GigabitEthernet0/0/0
+C    172.16.0.0/30 is directly connected, GigabitEthernet0/0/1","Ambiguous case diagnosis: While an ACL exists on R1, show output proves ACL 101 permits traffic (120 matches); root cause is missing return route for 10.10.1.0/24 on R2.",Layer 3 Network,ambiguous_acl_vs_route,High,ip route 10.10.1.0 255.255.255.0 172.16.0.2,Add the missing return route on R2 for 10.10.1.0/24.,show ip route 10.10.1.0; ping 10.20.1.100
+NC025,VLAN,Medium,Ambiguous,Switch port FastEthernet0/12 suddenly shut down (error-disabled) when a user plugged in a laptop. The ticket notes state: 'Unclear if port-security tripped or native VLAN mismatch caused shutdown'.,Switch SW-FLOOR1 interface Fa0/12 connects to office cubicle 12. Port security is configured for max 1 MAC address.,"SW-FLOOR1# show interfaces FastEthernet0/12 status
+
+Port      Name               Status       Vlan       Duplex  Speed Type
+Fa0/12    Cubicle_12         err-disabled 10         auto    auto  10/100BaseTX
+
+SW-FLOOR1# show port-security interface FastEthernet0/12
+Port Security              : Enabled
+Port Status                : Secure-shutdown
+Violation Mode             : Shutdown
+Maximum MAC Addresses      : 1
+Total MAC Addresses        : 1
+Configured MAC Addresses   : 0
+Sticky MAC Addresses       : 0
+Last Source Address:Vlan   : 0025.9612.ac41:10
+Security Violation Count   : 1","Ambiguous case diagnosis: The interface status is err-disabled due specifically to a Port Security violation (unauthorized MAC 0025.9612.ac41), not native VLAN mismatch.",Layer 2 Data Link,ambiguous_portsec_vs_vlan,Medium,show port-security interface FastEthernet0/12,Clear the port-security violation and authorize the intended MAC.,show port-security interface Fa0/12; verify authorized MAC
+NC026,Routing,Hard,AI Reasoning,Voice over IP traffic between HQ (10.100.0.0/16) and Regional Office (10.200.0.0/16) experiences terrible voice quality and out-of-order packets. Inbound and outbound traffic take different paths.,HQ Router R-HQ learns route to 10.200.0.0/16 via OSPF (cost 20) and via a static backup route configured pointing across a slow satellite backup link.,"R-HQ# show ip route 10.200.0.0
+Routing entry for 10.200.0.0/16
+  Known via ""static"", distance 10, metric 0
+  Routing Descriptor Blocks:
+  * 192.168.255.2, via GigabitEthernet0/0/1
+
+R-HQ# show ip ospf route | include 10.200.0.0
+    10.200.0.0/16, Intra-area, cost 20, Area 0","Static route to 10.200.0.0/16 was configured with a manual Administrative Distance of 10, which overrides the faster OSPF route (AD 110) causing asymmetric routing over satellite.",Layer 3 Network,routing_ad_conflict,High,no ip route 10.200.0.0 255.255.0.0 192.168.255.2,Remove/correct the low-AD static route so OSPF is preferred.,show ip route 10.200.0.0; verify OSPF path is selected
+NC027,VLAN,Easy,Deterministic,Security camera CAM-NORTH-01 connected to SW-OUTDOOR port Gi0/12 is unable to obtain an IP or reach the NVR server on VLAN 50. Port LED glows amber.,Switch SW-OUTDOOR has port Gi0/12 configured as `switchport access vlan 50`.,"SW-OUTDOOR# show running-config interface GigabitEthernet0/12
+interface GigabitEthernet0/12
+ switchport access vlan 50
+ switchport mode access
+end
+
+SW-OUTDOOR# show vlan brief
+
+VLAN Name                             Status    Ports
+---- -------------------------------- --------- -------------------------------
+1    default                          active    Gi0/1, Gi0/2, Gi0/3
+10   Corporate                        active    Gi0/4, Gi0/5
+20   IoT_Devices                      active    Gi0/6, Gi0/7","VLAN 50 has been assigned to interface Gi0/12 but has not been created in the switch VLAN database (`vlan 50`), rendering the port inactive.",Layer 2 Data Link,vlan_missing_database,High,vlan 50,Create VLAN 50 in the switch VLAN database.,show vlan brief; verify VLAN 50 and camera connectivity
+NC028,DNS,Hard,AI Reasoning,"Employees in the branch office complain that when they browse to `intranet.corp.local`, they get redirected to a public ISP landing page instead of the internal company portal.","Branch office uses local router R-BR-1 as primary DNS server (192.168.1.1), which forwards unknown queries out to Google Public DNS (8.8.8.8).","R-BR-1# show running-config | include ip dns|ip host
+ip dns server
+ip host intranet.corp.local 10.0.100.25
+
+R-BR-1# show ip dns view
+DNS View default read-only
+ DNS Forwarding: Enabled
+ Forwarding Address: 8.8.8.8
+
+C:\> nslookup intranet.corp.local 192.168.1.1
+Server:  router.branch
+Address:  192.168.1.1
+
+Non-authoritative answer:
+Name:  intranet.corp.local
+Address: 198.51.100.45",Split-horizon DNS failure: Router R-BR-1 DNS server service is forwarding internal domain queries to public DNS 8.8.8.8 because domain lookup is not bound to local host table.,Layer 7 Application,dns_split_horizon,Medium,show running-config | include ip host,Correct internal DNS resolution for intranet.corp.local.,nslookup intranet.corp.local 192.168.1.1; verify 10.0.100.25
+NC029,Wireless,Medium,Deterministic,Employees connecting to corporate Wi-Fi `Corp-Secure` via WPA2-Enterprise (802.1X) receive 'Authentication Failed' warnings on their mobile devices.,Wireless LAN Controller WLC-MAIN forwards RADIUS authentication requests to Windows NPS server 10.10.10.10 over UDP port 1812.,"WLC-MAIN# show radius summary
+Vendor Id........................................ 0
+Mode............................................. Disabled
+Total Servers.................................... 1
+
+Server Address  Port    Msg Auth  State     Server Type
+--------------  ------  --------  --------  -----------
+10.10.10.10     1812    Disabled  DOWN      Authentication
+
+WLC-MAIN# show logging | include RADIUS
+*dot1XMsgTask: Nov 14 10:12:01.105: %RADIUS-4-RADIUS_DEAD: RADIUS server 10.10.10.10:1812 is not responding to authentication requests. (Shared Secret Mismatch)",RADIUS server state is DOWN due to a pre-shared secret key mismatch between WLC-MAIN and the NPS RADIUS server (10.10.10.10).,Layer 7 Application,wireless_radius_auth,High,config radius auth add 1 10.10.10.10 1812 secret,Correct the WLC/NPS RADIUS shared secret.,show radius summary; test WPA2-Enterprise authentication
+NC030,Routing,Hard,AI Reasoning,"Site-to-Site IPsec VPN tunnel between Main Office (R-MAIN) and newly acquired Subsidiary (R-SUB) establishes Phase 1 and Phase 2, but hosts cannot pass traffic across the tunnel.",Main Office internal subnet is 192.168.1.0/24. Subsidiary internal subnet was also deployed using 192.168.1.0/24.,"R-MAIN# show crypto ipsec sa
+
+interface: GigabitEthernet0/0/0
+    Crypto map tag: VPN-MAP, local addr 203.0.113.10
+
+    local pkts encap: 45, encrypt: 45, digest: 45
+    local pkts decaps: 0, decrypt: 0, verify: 0
+    local pkts verify fails: 0, errors: 0
+    local ident (addr/mask/prot/port): (192.168.1.0/255.255.255.0/0/0)
+    remote ident (addr/mask/prot/port): (192.168.1.0/255.255.255.0/0/0)
+
+R-MAIN# show ip route 192.168.1.0
+Routing entry for 192.168.1.0/24
+  Known via ""connected"", distance 0, metric 0
+  Connected, via GigabitEthernet0/0/1",Overlapping subnets (192.168.1.0/24 on both sides of IPsec VPN tunnel); local connected route overrides VPN routing without policy NAT.,Layer 3 Network,overlapping_subnets,Critical,show crypto ipsec sa,Use non-overlapping VPN site subnets or a validated translation design.,show crypto ipsec sa; verify routing/traffic selectors after subnet correction
+NC031,Wireless,Medium,AI Reasoning,"A remote employee's home Wi-Fi extender is intermittently rebranding itself with the same SSID as the office guest network, causing a handful of visitor laptops to briefly show 'limited connectivity' before reconnecting on their own.","Reported by front desk staff after two visitors mentioned a brief drop. No support ticket was escalated, and the issue self-resolves within seconds each time.","WLC-CORE# show wlan summary
+WLAN ID  WLAN Profile Name / SSID              Status    Interface Name
+1        Corp-Guest-WLAN / Company-Guest       Enabled   guest-vlan
+
+WLC-CORE# show logging | include Company-Guest
+*apMgrTask: Nov 14 09:02:11.442: %APF-4-SSID_DUPLICATE: Rogue SSID 'Company-Guest' detected on channel 6, RSSI -71 dBm, auto-cleared after 8 sec","Low-impact rogue SSID broadcast detected briefly on channel 6, most likely a misconfigured personal Wi-Fi extender nearby; controller auto-classified and cleared it with no lasting client impact.",Layer 1 Physical,wireless_rogue_ssid,Low,show wireless wps rogue ap summary,No corrective action required; document the rogue SSID event and monitor for recurrence or escalation.,show wireless wps rogue ap summary; confirm no repeat detections
+NC032,Performance,Medium,AI Reasoning,"One user in the Design department mentions that file transfers to the print server 10.40.5.20 feel 'a little slower than usual' this week, though print jobs still complete successfully every time.",Design VLAN 60 (10.40.5.0/24) connects to the print server through switch SW-DESIGN over a 100 Mbps FastEthernet uplink instead of the standard Gigabit uplink used elsewhere.,"SW-DESIGN# show interfaces FastEthernet0/24 status
+
+Port      Name               Status       Vlan       Duplex  Speed Type
+Fa0/24    Uplink_to_Core     connected    trunk      a-full  a-100 10/100BaseTX
+
+SW-DESIGN# show interfaces FastEthernet0/24 | include rate
+  5 minute input rate 68000000 bits/sec, 7200 packets/sec
+  5 minute output rate 61000000 bits/sec, 6900 packets/sec","Uplink to the core switch is running at 100 Mbps FastEthernet instead of Gigabit, and is currently running near saturation (68 Mbps of 100 Mbps), causing minor but not service-impacting slowdowns.",Layer 1 Physical,bandwidth_uplink_saturation,Low,show interfaces FastEthernet0/24 status,Upgrade the SW-DESIGN uplink to a Gigabit interface/SFP to match the rest of the campus.,show interfaces status; confirm Gigabit speed and reduced utilization

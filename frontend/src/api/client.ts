@@ -25,6 +25,26 @@ export const fetchCases = async (): Promise<Case[]> => {
     }
 };
 
+export const createCase = async (
+    symptom: string, 
+    topology_note: string, 
+    show_outputs: string
+): Promise<Case> => {
+    try {
+        const res = await fetch(`${API_BASE}/cases/`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ symptom, topology_note, show_outputs })
+        });
+        return await handleResponse(res);
+    } catch (err: any) {
+        throw new Error(err.message || 'Failed to create case. Ensure the backend is running.');
+    }
+};
+
 export const fetchCase = async (id: number): Promise<Case> => {
     try {
         const res = await fetch(`${API_BASE}/cases/${id}`);

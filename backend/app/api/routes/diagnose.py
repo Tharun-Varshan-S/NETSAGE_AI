@@ -20,9 +20,13 @@ def process_and_diagnose(case: Case, db: Session) -> DiagnosisResponse:
     diagnosis_data = run_diagnosis(case, evidence, rule_findings)
     
     if diagnosis_data is None:
-        raise HTTPException(status_code=503, detail="AI diagnosis failed. Please proceed manually.")
+        raise HTTPException(status_code=503, detail="AI diagnostic service unavailable. Missing GEMINI_API_KEY in backend/.env configuration.")
     
-    # 4. Save state
+    # 4. Aggregator (Combines AI & Deterministic Findings)
+    from app.services.aggregator import DiagnosisAggregator
+    diagnosis_data = DiagnosisAggregator.aggregate(diagnosis_data, rule_findings)
+
+    # 5. Save state
     case.diagnosis_status = diagnosis_data.status
     case.ai_root_cause = diagnosis_data.root_cause
     case.ai_osi_layer = diagnosis_data.osi_layer
@@ -33,14 +37,9 @@ def process_and_diagnose(case: Case, db: Session) -> DiagnosisResponse:
     case.ai_fix_steps = diagnosis_data.fix_steps
     case.ai_verification_command = diagnosis_data.verification_command
     
-    # Optional: We could save the rule_findings to a new column if we wanted, 
-    # but the frontend can just receive it from this endpoint or we return it.
-    
     db.commit()
     db.refresh(case)
     
-    # Attach findings for the frontend response
-    diagnosis_data.rule_findings = rule_findings
     return diagnosis_data
 
 @router.post("/{case_id}", response_model=DiagnosisResponse)

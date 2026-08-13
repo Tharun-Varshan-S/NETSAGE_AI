@@ -41,8 +41,10 @@ npm run dev
 ## Manual Testing Workflow
 
 1. Open `http://localhost:5173` in your browser.
-2. Navigate to a case (e.g., NC005).
-3. Click **"Run Initial Analysis"**.
-4. The AI will likely pause with a **NEEDS_INFO** status and request a specific command (e.g., `show ip route`).
-5. Paste a dummy output (or actual Packet Tracer output if you have it) into the text box and click **"Submit Output to AI"**.
-6. The AI will process the new evidence and attempt to diagnose the root cause!
+2. Navigate to **New Diagnosis** on the left sidebar.
+3. Paste symptoms, topology notes, and raw CLI outputs (e.g., from Packet Tracer) into the Data Ingestion form.
+4. Click **Begin AI Diagnosis**. This automatically creates a dynamic case and routes you to the Review Screen.
+5. Click **"Run Initial Analysis"**. The AI and Deterministic Rule Checker will process the evidence.
+6. The AI may diagnose the root cause immediately or pause with a **NEEDS_INFO** status requesting a specific command (e.g., `show ip route`).
+7. If more info is needed, paste the new command output into the text box and click **"Submit Output to AI"**.
+8. The AI will process the new evidence and attempt to diagnose the root cause!

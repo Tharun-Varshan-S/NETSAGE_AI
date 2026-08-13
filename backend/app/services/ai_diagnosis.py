@@ -1,5 +1,7 @@
 import time
 import json
+import os
+from datetime import datetime
 from google import genai
 from google.genai import types
 from pydantic import ValidationError
@@ -56,26 +58,65 @@ def run_diagnosis(case: Case, evidence: Dict[str, Any], rule_findings: List[Dict
     
     prompt = generate_diagnosis_prompt(case, evidence, rule_findings)
     
+    def _extract_json_from_text(text: str):
+        """Try to find a JSON object anywhere in the returned text.
+        Returns a Python object or None."""
+        decoder = json.JSONDecoder()
+        text = text or ""
+        for i, ch in enumerate(text):
+            if ch != '{':
+                continue
+            try:
+                obj, end = decoder.raw_decode(text[i:])
+                return obj
+            except json.JSONDecodeError:
+                continue
+        return None
+
+    logs_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'logs')
+    try:
+        os.makedirs(logs_dir, exist_ok=True)
+    except Exception:
+        logs_dir = None
+
     for attempt in range(max_retries):
         try:
             response = client.models.generate_content(
-                model='gemini-3.6-flash',
+                model='gemini-2.5-flash',
                 contents=prompt,
                 config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=Diagnosis,
+                    response_mime_type="text/plain",
                     temperature=0.1, # Extremely low temperature for strict adherence to evidence
                 )
             )
-            
-            raw_text = response.text
-            if raw_text is None:
+
+            raw_text = getattr(response, 'text', None) or str(response)
+            # log raw response for debugging
+            if logs_dir and raw_text:
+                try:
+                    with open(os.path.join(logs_dir, 'ai_raw_responses.log'), 'a', encoding='utf-8') as f:
+                        f.write(f"{datetime.utcnow().isoformat()} - CASE:{case.id if hasattr(case, 'id') else 'unknown'}\n")
+                        f.write(raw_text)
+                        f.write("\n---\n")
+                except Exception:
+                    pass
+
+            if not raw_text:
                 raise ValueError("Empty response from AI")
-                
-            diagnosis_data = json.loads(raw_text)
+
+            # Try strict JSON parse first, then try to extract JSON substring
+            diagnosis_data = None
+            try:
+                diagnosis_data = json.loads(raw_text)
+            except json.JSONDecodeError:
+                diagnosis_data = _extract_json_from_text(raw_text)
+
+            if not diagnosis_data:
+                raise ValueError("Could not extract JSON from AI response")
+
             diagnosis = Diagnosis(**diagnosis_data)
             return diagnosis
-            
+
         except (ValueError, json.JSONDecodeError, ValidationError) as e:
             print(f"Parsing/Validation Error: {e}")
             time.sleep(2 ** attempt)
@@ -83,4 +124,20 @@ def run_diagnosis(case: Case, evidence: Dict[str, Any], rule_findings: List[Dict
             print(f"API Error: {e}")
             time.sleep(2 ** attempt)
 
-    return None
+    # If the AI failed after retries, return a safe NEEDS_INFO diagnosis that includes deterministic rule findings
+    try:
+        fallback = Diagnosis(
+            status="NEEDS_INFO",
+            root_cause=None,
+            osi_layer=None,
+            confidence="Low",
+            evidence=None,
+            reason="AI failed to return a valid structured diagnosis after multiple attempts. Returning deterministic rule findings for human review.",
+            next_command=None,
+            fix_steps=None,
+            verification_command=None,
+            rule_findings=rule_findings
+        )
+        return fallback
+    except Exception:
+        return None

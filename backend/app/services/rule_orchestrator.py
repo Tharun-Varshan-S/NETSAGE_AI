@@ -1,5 +1,5 @@
 from typing import Dict, Any, List
-from .checks import (
+from .rule_checker.checks import (
     check_duplicate_ips,
     check_wrong_masks,
     check_gateway_mismatch,

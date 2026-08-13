@@ -17,18 +17,18 @@ export default function Evaluation() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
         <Loader2 className="animate-spin text-[var(--accent)]" size={24} />
-        <span className="text-[var(--text-muted)] text-sm">Running evaluations...</span>
+        <span className="text-[var(--text-muted)] text-[13px]">Running evaluations...</span>
       </div>
     );
   }
 
   if (error || !cases) {
     return (
-      <div className="card max-w-lg mx-auto mt-12 p-6 flex gap-4 items-start border-red-500/20">
-        <AlertCircle className="text-red-400 shrink-0 mt-0.5" size={20} />
+      <div className="card max-w-lg mx-auto mt-12 p-6 flex gap-3 items-start border-[var(--danger)]/20">
+        <AlertCircle className="text-[var(--danger)] shrink-0" size={18} />
         <div>
-          <h3 className="font-semibold text-red-400 text-sm">Connection Error</h3>
-          <p className="text-[var(--text-tertiary)] text-sm mt-1">Cannot reach the backend API.</p>
+          <h3 className="font-semibold text-[var(--danger)] text-[13px]">Connection Error</h3>
+          <p className="text-[var(--text-tertiary)] text-[12px] mt-1">Cannot reach the backend API.</p>
         </div>
       </div>
     );
@@ -51,10 +51,10 @@ export default function Evaluation() {
 
   const GradeBadge = ({ grade }: { grade: string }) => {
     const config: Record<string, { class: string; icon: React.ReactNode }> = {
-      'CORRECT': { class: 'badge-green', icon: <CheckCircle2 size={12} /> },
-      'PARTIAL': { class: 'badge-amber', icon: <AlertTriangle size={12} /> },
-      'INCORRECT': { class: 'badge-red', icon: <XCircle size={12} /> },
-      'PENDING': { class: 'badge-gray', icon: <HelpCircle size={12} /> },
+      'CORRECT': { class: 'badge-success', icon: <CheckCircle2 size={12} /> },
+      'PARTIAL': { class: 'badge-warning', icon: <AlertTriangle size={12} /> },
+      'INCORRECT': { class: 'badge-danger', icon: <XCircle size={12} /> },
+      'PENDING': { class: 'badge-neutral', icon: <HelpCircle size={12} /> },
     };
     const c = config[grade] || config['PENDING'];
     return <span className={`badge ${c.class}`}>{c.icon} {grade}</span>;
@@ -92,13 +92,13 @@ export default function Evaluation() {
 
   const CompRow = ({ label, expected, actual, grade }: { label: string; expected?: string; actual?: string; grade: string }) => (
     <div className="flex items-start gap-4 py-3 border-b border-[var(--border-subtle)] last:border-b-0">
-      <span className="w-28 shrink-0 text-[12px] font-semibold text-[var(--text-muted)] uppercase tracking-wide pt-0.5">{label}</span>
+      <span className="w-28 shrink-0 text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide pt-0.5">{label}</span>
       <div className="flex-1 min-w-0">
-        <div className="text-[13px] text-[var(--text-tertiary)]">
+        <div className="text-[12px] text-[var(--text-tertiary)]">
           <span className="text-[11px] text-[var(--text-muted)]">Expected: </span>
           {expected || <span className="italic">Not specified</span>}
         </div>
-        <div className="text-[13px] text-[var(--text-secondary)] mt-0.5">
+        <div className="text-[12px] text-[var(--text-secondary)] mt-1">
           <span className="text-[11px] text-[var(--text-muted)]">AI Output: </span>
           {actual || <span className="italic text-[var(--text-muted)]">Pending</span>}
         </div>
@@ -108,10 +108,10 @@ export default function Evaluation() {
   );
 
   return (
-    <div className="space-y-5 animate-in select-text">
+    <div className="space-y-6 animate-in select-text">
       <div className="page-header">
-        <h1>Model Evaluation</h1>
-        <p>Compare AI predictions against ground-truth annotations across 4 dimensions.</p>
+        <h1 className="page-title">Model Evaluation</h1>
+        <p className="page-description">Compare AI predictions against ground-truth annotations across 4 dimensions.</p>
       </div>
 
       {/* KPIs */}
@@ -131,16 +131,16 @@ export default function Evaluation() {
         <div className="stat-card">
           <div className="flex items-center gap-4 mt-1">
             <div className="text-center">
-              <span className="text-[16px] font-bold text-[var(--success)]">{correct}</span>
-              <div className="text-[10px] text-[var(--text-muted)] uppercase">Correct</div>
+              <span className="text-[15px] font-bold text-[var(--success)]">{correct}</span>
+              <div className="text-[10px] font-medium tracking-wide text-[var(--text-muted)] uppercase mt-0.5">Correct</div>
             </div>
             <div className="text-center">
-              <span className="text-[16px] font-bold text-[var(--warning)]">{partial}</span>
-              <div className="text-[10px] text-[var(--text-muted)] uppercase">Partial</div>
+              <span className="text-[15px] font-bold text-[var(--warning)]">{partial}</span>
+              <div className="text-[10px] font-medium tracking-wide text-[var(--text-muted)] uppercase mt-0.5">Partial</div>
             </div>
             <div className="text-center">
-              <span className="text-[16px] font-bold text-[var(--danger)]">{incorrect}</span>
-              <div className="text-[10px] text-[var(--text-muted)] uppercase">Wrong</div>
+              <span className="text-[15px] font-bold text-[var(--danger)]">{incorrect}</span>
+              <div className="text-[10px] font-medium tracking-wide text-[var(--text-muted)] uppercase mt-0.5">Wrong</div>
             </div>
           </div>
           <div className="stat-label">Breakdown</div>
@@ -149,60 +149,62 @@ export default function Evaluation() {
 
       {/* Search */}
       <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-[9px] text-[var(--text-muted)]" size={15} />
-        <input type="text" placeholder="Filter cases..." className="input pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" size={14} />
+        <input type="text" placeholder="Filter cases..." className="input-field pl-9" value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
       {/* Table */}
       <div className="card overflow-hidden">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th style={{ width: 32 }}></th>
-              <th>Case ID</th>
-              <th>Fault (Expected → AI)</th>
-              <th className="text-right">Overall Grade</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(c => (
-              <Fragment key={c.id}>
-                <tr onClick={() => setExpandedId(expandedId === c.id ? null : c.id)} className="cursor-pointer">
-                  <td className="text-[var(--text-muted)]" style={{ width: 32 }}>
-                    {expandedId === c.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                  </td>
-                  <td className="font-semibold text-[var(--text-primary)]">{c.case_id}</td>
-                  <td>
-                    <span className="text-[var(--text-tertiary)]">{c.expected_fault || '—'}</span>
-                    <span className="text-[var(--text-muted)] mx-2">→</span>
-                    <span className="text-[var(--text-secondary)]">{c.ai_root_cause || <span className="italic text-[var(--text-muted)]">Pending</span>}</span>
-                  </td>
-                  <td className="text-right">
-                    {c.ai_root_cause ? <GradeBadge grade={c.overall} /> : <span className="text-[var(--text-muted)] italic text-[13px]">—</span>}
-                  </td>
-                </tr>
-                {expandedId === c.id && (
-                  <tr key={`${c.id}-detail`}>
-                    <td colSpan={4} className="bg-[var(--bg-primary)] !p-0">
-                      <div className="px-6 py-4">
-                        <CompRow label="Root Cause" expected={c.expected_fault} actual={c.ai_root_cause} grade={c.grades.fault} />
-                        <CompRow label="Next Command" expected={c.expected_next_command} actual={c.ai_next_command} grade={c.grades.cmd} />
-                        <CompRow label="Fix Steps" expected={c.expected_fix} actual={c.ai_fix_steps} grade={c.grades.fix} />
-                        <CompRow label="Verification" expected={c.verification_command} actual={c.ai_verification_command} grade={c.grades.verify} />
-                      </div>
+        <div className="card-body p-0">
+          <table className="data-table w-full">
+            <thead>
+              <tr>
+                <th style={{ width: 32 }}></th>
+                <th>Case ID</th>
+                <th>Fault (Expected → AI)</th>
+                <th className="text-right">Overall Grade</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(c => (
+                <Fragment key={c.id}>
+                  <tr onClick={() => setExpandedId(expandedId === c.id ? null : c.id)} className="cursor-pointer group">
+                    <td className="text-[var(--text-muted)] group-hover:text-[var(--text-secondary)] transition-colors" style={{ width: 32 }}>
+                      {expandedId === c.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </td>
+                    <td className="font-semibold text-[var(--text-primary)]">{c.case_id}</td>
+                    <td>
+                      <span className="text-[var(--text-tertiary)]">{c.expected_fault || '—'}</span>
+                      <span className="text-[var(--text-muted)] mx-2">→</span>
+                      <span className="text-[var(--text-secondary)]">{c.ai_root_cause || <span className="italic text-[var(--text-muted)]">Pending</span>}</span>
+                    </td>
+                    <td className="text-right">
+                      {c.ai_root_cause ? <GradeBadge grade={c.overall} /> : <span className="text-[var(--text-muted)] italic text-[12px]">—</span>}
                     </td>
                   </tr>
-                )}
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
-        {filtered.length === 0 && (
-          <div className="py-16 text-center text-[var(--text-muted)]">
-            <Inbox className="mx-auto mb-3" size={28} />
-            <p className="text-sm font-medium">No evaluations found</p>
-          </div>
-        )}
+                  {expandedId === c.id && (
+                    <tr key={`${c.id}-detail`}>
+                      <td colSpan={4} className="bg-[var(--bg-secondary)]/30 !p-0">
+                        <div className="px-6 py-4">
+                          <CompRow label="Root Cause" expected={c.expected_fault} actual={c.ai_root_cause} grade={c.grades.fault} />
+                          <CompRow label="Next Command" expected={c.expected_next_command} actual={c.ai_next_command} grade={c.grades.cmd} />
+                          <CompRow label="Fix Steps" expected={c.expected_fix} actual={c.ai_fix_steps} grade={c.grades.fix} />
+                          <CompRow label="Verification" expected={c.verification_command} actual={c.ai_verification_command} grade={c.grades.verify} />
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+          {filtered.length === 0 && (
+            <div className="py-16 text-center text-[var(--text-muted)]">
+              <Inbox className="mx-auto mb-3 opacity-50" size={28} />
+              <p className="text-[13px] font-medium text-[var(--text-secondary)]">No evaluations found</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -29,6 +29,7 @@ export default function ReviewScreen({ caseId, onBack }: ReviewScreenProps) {
   const [reviewMode, setReviewMode] = useState<'none' | 'accept' | 'edit' | 'reject'>('none');
   const [rejectReason, setRejectReason] = useState('');
   const [editReason, setEditReason] = useState('');
+  const [hasAutoRun, setHasAutoRun] = useState(false);
   
   // Edit Form Fields
   const [editRootCause, setEditRootCause] = useState('');
@@ -43,6 +44,19 @@ export default function ReviewScreen({ caseId, onBack }: ReviewScreenProps) {
   const { data: caseData, isLoading, error: fetchError } = useQuery<Case>({
     queryKey: ['cases', caseId],
     queryFn: () => fetchCase(caseId),
+  });
+
+  // Mutations
+  const diagnoseMutation = useMutation({
+    mutationFn: () => diagnoseCase(caseId),
+    onSuccess: () => {
+      setErrorMsg(null);
+      queryClient.invalidateQueries({ queryKey: ['cases', caseId] });
+      queryClient.invalidateQueries({ queryKey: ['cases'] });
+    },
+    onError: (err: any) => {
+      setErrorMsg(err.message || 'Diagnosis failed. Please verify the AI engine connection.');
+    }
   });
 
   // Prefill Edit fields once data is loaded
@@ -61,21 +75,14 @@ export default function ReviewScreen({ caseId, onBack }: ReviewScreenProps) {
       } else {
         setInVerificationMode(false);
       }
-    }
-  }, [caseData]);
 
-  // Mutations
-  const diagnoseMutation = useMutation({
-    mutationFn: () => diagnoseCase(caseId),
-    onSuccess: () => {
-      setErrorMsg(null);
-      queryClient.invalidateQueries({ queryKey: ['cases', caseId] });
-      queryClient.invalidateQueries({ queryKey: ['cases'] });
-    },
-    onError: (err: any) => {
-      setErrorMsg(err.message || 'Diagnosis failed. Please verify the AI engine connection.');
+      // Auto-run diagnosis if it is a new case and hasn't run yet
+      if (!caseData.ai_root_cause && caseData.diagnosis_status !== 'NEEDS_INFO' && !hasAutoRun) {
+        setHasAutoRun(true);
+        diagnoseMutation.mutate();
+      }
     }
-  });
+  }, [caseData, hasAutoRun, diagnoseMutation]);
 
   const submitOutputMutation = useMutation({
     mutationFn: () => submitCommandOutput(caseId, caseData?.ai_next_command || '', commandOutput),
@@ -235,7 +242,7 @@ export default function ReviewScreen({ caseId, onBack }: ReviewScreenProps) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
         <Loader2 className="animate-spin text-[var(--accent)]" size={24} />
-        <span className="text-[var(--text-muted)] text-sm">Loading case details...</span>
+        <span className="text-[var(--text-muted)] text-[13px]">Loading case details...</span>
       </div>
     );
   }
@@ -243,12 +250,12 @@ export default function ReviewScreen({ caseId, onBack }: ReviewScreenProps) {
   // Error
   if (fetchError || !caseData) {
     return (
-      <div className="card max-w-lg mx-auto mt-12 p-6 flex flex-col gap-4 border-red-500/20">
+      <div className="card max-w-lg mx-auto mt-12 p-6 flex flex-col gap-4 border-[var(--danger)]/20">
         <div className="flex items-center gap-3">
-          <AlertCircle className="text-red-400 shrink-0" size={20} />
+          <AlertCircle className="text-[var(--danger)] shrink-0" size={20} />
           <div>
-            <h3 className="font-semibold text-red-400 text-sm">Connection Error</h3>
-            <p className="text-[var(--text-tertiary)] text-sm mt-1">{fetchError?.message || 'Could not fetch case details.'}</p>
+            <h3 className="font-semibold text-[var(--danger)] text-[13px]">Connection Error</h3>
+            <p className="text-[var(--text-tertiary)] text-[13px] mt-1">{fetchError?.message || 'Could not fetch case details.'}</p>
           </div>
         </div>
         <button onClick={onBack} className="btn btn-secondary self-start">← Back to Queue</button>
@@ -322,33 +329,33 @@ export default function ReviewScreen({ caseId, onBack }: ReviewScreenProps) {
 
   // Helper for terminal blocks
   const TerminalBlock = ({ title, blocks, fallback }: { title: string; blocks: { command: string; output: string }[]; fallback: string }) => (
-    <div className="terminal flex flex-col min-h-[200px] max-h-[350px]">
-      <div className="terminal-header">
-        <Terminal size={13} className="text-[var(--accent)]" />
-        <span className="text-[12px] font-medium text-[var(--text-secondary)]">{title}</span>
+    <div className="card h-full">
+      <div className="card-header py-3 flex items-center gap-2">
+        <Terminal size={14} className="text-[var(--accent)]" />
+        <span className="text-[13px] font-medium text-[var(--text-secondary)]">{title}</span>
       </div>
-      <div className="terminal-body flex-1 overflow-y-auto text-[12px]">
+      <div className="card-body p-0 max-h-[350px] overflow-y-auto terminal-block rounded-t-none border-x-0 border-b-0">
         {blocks.length > 0 ? blocks.map((b, i) => (
-          <div key={i} className="mb-3">
-            <span className="text-green-400 font-semibold block">{b.command}</span>
-            <pre className="whitespace-pre-wrap overflow-x-auto text-[var(--text-tertiary)]">{b.output}</pre>
+          <div key={i} className="mb-4 last:mb-0">
+            <span className="text-green-400 font-semibold block mb-1 text-[12px]">{b.command}</span>
+            <pre className="whitespace-pre-wrap text-[var(--text-secondary)]">{b.output}</pre>
           </div>
-        )) : <span className="text-[var(--text-muted)] italic">{fallback}</span>}
+        )) : <span className="text-[var(--text-muted)] italic px-4 py-3 block text-[12px]">{fallback}</span>}
       </div>
     </div>
   );
 
   return (
-    <div className="space-y-5 animate-in select-text">
+    <div className="space-y-6 animate-in select-text">
       
       {/* Error Banner */}
       {errorMsg && (
-        <div className="card p-3 flex items-center justify-between border-red-500/20 bg-red-500/5">
-          <div className="flex items-center gap-2 text-red-400 text-sm">
+        <div className="card p-3 flex items-center justify-between border-[var(--danger)]/20 bg-[var(--danger)]/5">
+          <div className="flex items-center gap-2 text-[var(--danger)] text-[13px]">
             <AlertTriangle size={16} />
             <span>{errorMsg}</span>
           </div>
-          <button onClick={() => setErrorMsg(null)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+          <button onClick={() => setErrorMsg(null)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
             <X size={16} />
           </button>
         </div>
@@ -357,44 +364,44 @@ export default function ReviewScreen({ caseId, onBack }: ReviewScreenProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="btn btn-ghost text-sm py-1.5 px-2">
-            <ArrowLeft size={16} /> Back
+          <button onClick={onBack} className="btn btn-secondary py-1.5 px-2.5 text-[12px] h-auto">
+            <ArrowLeft size={14} /> Back
           </button>
           <div className="h-5 w-px bg-[var(--border-subtle)]" />
           <h1 className="text-lg font-bold text-[var(--text-primary)]">{caseData.case_id}</h1>
-          <span className="badge badge-gray">{caseData.category}</span>
-          <span className={`badge ${caseData.severity === 'High' ? 'badge-red' : caseData.severity === 'Medium' ? 'badge-amber' : 'badge-blue'}`}>{caseData.severity}</span>
+          <span className="badge badge-neutral">{caseData.category}</span>
+          <span className={`badge ${caseData.severity === 'High' ? 'badge-danger' : caseData.severity === 'Medium' ? 'badge-warning' : 'badge-info'}`}>{caseData.severity}</span>
         </div>
         <span className={`badge ${
-          caseData.diagnosis_status === 'NEEDS_INFO' ? 'badge-amber' : 
-          caseData.diagnosis_status === 'DIAGNOSED' ? 'badge-blue' :
-          caseData.diagnosis_status === 'RESOLVED' ? 'badge-green' :
-          caseData.diagnosis_status === 'NOT_RESOLVED' ? 'badge-red' : 'badge-gray'
+          caseData.diagnosis_status === 'NEEDS_INFO' ? 'badge-warning' : 
+          caseData.diagnosis_status === 'DIAGNOSED' ? 'badge-info' :
+          caseData.diagnosis_status === 'RESOLVED' ? 'badge-success' :
+          caseData.diagnosis_status === 'NOT_RESOLVED' ? 'badge-danger' : 'badge-neutral'
         }`}>{caseData.diagnosis_status || 'NEW'}</span>
       </div>
 
       {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* ── Left Column (2/3) ── */}
-        <div className="lg:col-span-2 space-y-5">
+        <div className="lg:col-span-2 space-y-6">
 
           {/* Symptoms */}
           <div className="card">
-            <div className="card-header">
-              <h3 className="text-sm font-semibold text-[var(--text-secondary)]">Reported Symptoms</h3>
+            <div className="card-header bg-transparent border-none pb-0">
+              <h3 className="card-title text-[14px]">Reported Symptoms</h3>
             </div>
-            <div className="card-body text-[14px] text-[var(--text-secondary)] leading-relaxed">
+            <div className="card-body pt-3 text-[13px] text-[var(--text-secondary)] leading-relaxed">
               {caseData.symptom}
             </div>
           </div>
 
           {/* Topology */}
           <div className="card">
-            <div className="card-header">
-              <h3 className="text-sm font-semibold text-[var(--text-secondary)]">Network Topology</h3>
+            <div className="card-header bg-transparent border-none pb-0">
+              <h3 className="card-title text-[14px]">Network Topology</h3>
             </div>
-            <div className="card-body text-[14px] text-[var(--text-tertiary)] leading-relaxed">
+            <div className="card-body pt-3 text-[13px] text-[var(--text-tertiary)] leading-relaxed">
               {caseData.topology_note}
             </div>
           </div>
@@ -411,20 +418,53 @@ export default function ReviewScreen({ caseId, onBack }: ReviewScreenProps) {
         </div>
 
         {/* ── Right Column (1/3) ── */}
-        <div className="space-y-5">
+        <div className="space-y-6">
 
-          {/* AI Diagnosis Card */}
-          <div className="card">
-            <div className="card-header flex items-center justify-between">
-              <span className="text-sm font-semibold text-[var(--text-secondary)] flex items-center gap-2">
-                <Sparkles size={15} className="text-[var(--accent)]" /> AI Diagnosis
-              </span>
+          {/* AI Diagnosis Card / Loading State */}
+          {!hasDiagnoseRun ? (
+            <div className="card p-8 flex flex-col items-center justify-center text-center space-y-4 min-h-[300px] border border-[var(--border-default)]">
+              {diagnoseMutation.isPending ? (
+                <>
+                  <div className="relative flex justify-center items-center h-16 w-16 mb-2">
+                    <div className="absolute inset-0 rounded-full blur-md bg-[var(--accent)]/20 animate-pulse" />
+                    <Loader2 size={36} className="animate-spin text-[var(--accent)] relative z-10" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-[var(--text-primary)] text-[15px]">Diagnosing network...</h3>
+                    <p className="text-[var(--text-tertiary)] text-[12px] mt-2 leading-relaxed">
+                      Analyzing topology, parsing CLI, and evaluating rules.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <h3 className="font-semibold text-[var(--text-primary)] text-[14px]">Ready to Diagnose</h3>
+                    <p className="text-[var(--text-tertiary)] text-[12px] mt-1">
+                      Evidence ingested.
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => diagnoseMutation.mutate()}
+                    className="btn btn-primary mt-3 w-full justify-center"
+                  >
+                    <PlayCircle size={15} /> Run Diagnosis
+                  </button>
+                </>
+              )}
             </div>
-            <div className="card-body space-y-4">
-              {/* Root Cause */}
+          ) : (
+            <div className="card border border-[var(--border-default)]">
+              <div className="card-header bg-[var(--bg-secondary)]/50 border-b border-[var(--border-subtle)]">
+                <span className="text-sm font-semibold text-[var(--text-secondary)] flex items-center gap-2">
+                  <Sparkles size={15} className="text-[var(--accent)]" /> AI Diagnosis
+                </span>
+              </div>
+              <div className="card-body space-y-4">
+                {/* Root Cause */}
               <div>
-                <label className="text-[12px] font-semibold text-[var(--text-muted)] uppercase tracking-wide block mb-1">Root Cause</label>
-                <div className="p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-subtle)] text-[14px] text-[var(--text-secondary)] leading-relaxed">
+                <label className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide block mb-1.5">Root Cause</label>
+                <div className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-default)] text-[13px] text-[var(--text-secondary)] leading-relaxed break-words">
                   {caseData.ai_root_cause || <span className="text-[var(--text-muted)] italic">Run diagnosis to identify root cause.</span>}
                 </div>
               </div>
@@ -432,48 +472,48 @@ export default function ReviewScreen({ caseId, onBack }: ReviewScreenProps) {
               {/* Evidence */}
               {caseData.ai_evidence && (
                 <div>
-                  <label className="text-[12px] font-semibold text-[var(--text-muted)] uppercase tracking-wide block mb-1">Evidence</label>
-                  <p className="text-[13px] text-[var(--text-tertiary)] leading-relaxed">{caseData.ai_evidence}</p>
+                  <label className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide block mb-1.5">Evidence</label>
+                  <p className="text-[13px] text-[var(--text-tertiary)] leading-relaxed break-words">{caseData.ai_evidence}</p>
                 </div>
               )}
 
               {/* Reasoning */}
               {caseData.ai_reason && (
                 <div>
-                  <label className="text-[12px] font-semibold text-[var(--text-muted)] uppercase tracking-wide block mb-1">Reasoning</label>
-                  <p className="text-[13px] text-[var(--text-tertiary)] leading-relaxed">{caseData.ai_reason}</p>
+                  <label className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide block mb-1.5">Reasoning</label>
+                  <p className="text-[13px] text-[var(--text-tertiary)] leading-relaxed break-words">{caseData.ai_reason}</p>
                 </div>
               )}
 
               {/* OSI + Confidence */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-subtle)]">
-                  <label className="text-[11px] font-semibold text-[var(--text-muted)] uppercase block mb-1">OSI Layer</label>
-                  <span className="text-[var(--accent)] font-semibold">{caseData.ai_osi_layer || '—'}</span>
+                <div className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-default)]">
+                  <label className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block mb-1">OSI Layer</label>
+                  <span className="text-[var(--accent)] font-semibold text-[13px]">{caseData.ai_osi_layer || '—'}</span>
                 </div>
-                <div className="p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-subtle)]">
-                  <label className="text-[11px] font-semibold text-[var(--text-muted)] uppercase block mb-1">Confidence</label>
+                <div className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-default)]">
+                  <label className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block mb-1">Confidence</label>
                   <div className="flex items-center gap-2 mt-1">
-                    <div className="flex-1 h-2 bg-[var(--bg-hover)] rounded-full overflow-hidden">
+                    <div className="flex-1 h-1.5 bg-[var(--border-default)] rounded-full overflow-hidden">
                       <div className="h-full bg-[var(--accent)] rounded-full transition-all" style={{ width: `${confPercent}%` }} />
                     </div>
-                    <span className="text-[12px] text-[var(--text-secondary)] font-semibold">{confPercent}%</span>
+                    <span className="text-[11px] text-[var(--text-secondary)] font-semibold">{confPercent}%</span>
                   </div>
                 </div>
               </div>
 
               {/* Rule Findings */}
               <div>
-                <label className="text-[12px] font-semibold text-[var(--text-muted)] uppercase tracking-wide block mb-2">Rule Checks</label>
+                <label className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide block mb-2">Rule Checks</label>
                 <div className="space-y-1.5">
                   {ruleFindings.map((f: any, i: number) => (
-                    <div key={i} className="flex items-center gap-2 text-[13px]">
+                    <div key={i} className="flex items-center gap-2 text-[12px]">
                       {f.status === 'DETECTED' ? (
-                        <AlertTriangle size={13} className="text-amber-400 shrink-0" />
+                        <AlertTriangle size={13} className="text-[var(--warning)] shrink-0" />
                       ) : (
                         <CheckCircle2 size={13} className="text-[var(--success)] shrink-0" />
                       )}
-                      <span className={f.status === 'DETECTED' ? 'text-amber-300' : 'text-[var(--text-tertiary)]'}>
+                      <span className={f.status === 'DETECTED' ? 'text-[var(--warning)]' : 'text-[var(--text-tertiary)]'}>
                         {f.rule.replace(/_/g, ' ')}
                       </span>
                     </div>
@@ -482,27 +522,28 @@ export default function ReviewScreen({ caseId, onBack }: ReviewScreenProps) {
               </div>
             </div>
           </div>
+          )}
 
           {/* Timeline */}
           <div className="card">
-            <div className="card-header">
-              <h3 className="text-sm font-semibold text-[var(--text-secondary)]">Progress</h3>
+            <div className="card-header bg-transparent border-none pb-0">
+              <h3 className="card-title text-[14px]">Progress</h3>
             </div>
-            <div className="card-body space-y-0">
+            <div className="card-body pt-3 space-y-0">
               {timelineSteps.map((step, i) => (
                 <div key={i} className="flex gap-3 py-2">
                   <div className="flex flex-col items-center">
-                    <div className={`h-3 w-3 rounded-full border-2 ${
+                    <div className={`h-2.5 w-2.5 rounded-full border-[1.5px] ${
                       step.done ? 'bg-[var(--accent)] border-[var(--accent)]' : 'bg-transparent border-[var(--border-strong)]'
                     }`} />
                     {i < timelineSteps.length - 1 && <div className="w-px flex-1 bg-[var(--border-subtle)] mt-1" />}
                   </div>
-                  <div className="-mt-0.5 min-w-0">
-                    <span className={`text-[13px] font-medium block ${step.done ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'}`}>
+                  <div className="-mt-1 min-w-0">
+                    <span className={`text-[12px] font-medium block ${step.done ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'}`}>
                       {step.label}
                     </span>
                     {step.done && step.detail && (
-                      <span className="text-[12px] text-[var(--text-muted)] block truncate">{step.detail}</span>
+                      <span className="text-[11px] text-[var(--text-muted)] block truncate mt-0.5">{step.detail}</span>
                     )}
                   </div>
                 </div>
@@ -513,44 +554,25 @@ export default function ReviewScreen({ caseId, onBack }: ReviewScreenProps) {
       </div>
 
       {/* ── Full-width action sections ── */}
-      <div className="space-y-5">
+      <div className="space-y-6">
 
-        {/* Start Diagnosis */}
-        {!hasDiagnoseRun && (
-          <div className="card p-5 flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-[var(--text-primary)]">Ready to Diagnose</h3>
-              <p className="text-[var(--text-tertiary)] text-sm mt-0.5">Run AI-assisted fault detection, rule checks, and root cause analysis.</p>
-            </div>
-            <button 
-              onClick={() => diagnoseMutation.mutate()}
-              disabled={diagnoseMutation.isPending}
-              className="btn btn-primary"
-            >
-              {diagnoseMutation.isPending ? (
-                <><Loader2 size={15} className="animate-spin" /> Running...</>
-              ) : (
-                <><PlayCircle size={15} /> Run Diagnosis</>
-              )}
-            </button>
-          </div>
-        )}
+
 
         {/* Needs More Info */}
         {caseData.diagnosis_status === 'NEEDS_INFO' && caseData.ai_next_command && (
-          <div className="card border-amber-500/20">
-            <div className="card-header bg-amber-500/5 flex items-center gap-2">
-              <AlertTriangle size={15} className="text-amber-400" />
-              <h3 className="text-sm font-semibold text-amber-300">Additional Evidence Required</h3>
+          <div className="card border-[var(--warning)]/20">
+            <div className="card-header bg-[var(--warning)]/5 flex items-center gap-2">
+              <AlertTriangle size={15} className="text-[var(--warning)]" />
+              <h3 className="text-[14px] font-semibold text-[var(--warning)]">Additional Evidence Required</h3>
             </div>
             <div className="card-body space-y-4">
-              <p className="text-[var(--text-tertiary)] text-sm">Execute the following command in Packet Tracer and paste the output below.</p>
+              <p className="text-[var(--text-tertiary)] text-[13px]">Execute the following command in Packet Tracer and paste the output below.</p>
               
               <div>
-                <label className="text-[12px] font-semibold text-[var(--text-muted)] uppercase tracking-wide block mb-1">Command</label>
-                <div className="flex items-center justify-between p-3 bg-[#050507] rounded-lg border border-[var(--border-subtle)] font-mono text-sm">
+                <label className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide block mb-1.5">Command</label>
+                <div className="flex items-center justify-between p-2.5 terminal-block">
                   <code className="text-green-400 select-all">{caseData.ai_next_command}</code>
-                  <button onClick={() => handleCopy(caseData.ai_next_command || '')} className="btn btn-ghost text-[12px] py-1 px-2">
+                  <button onClick={() => handleCopy(caseData.ai_next_command || '')} className="btn btn-secondary text-[11px] py-1 px-2 h-auto">
                     <ClipboardCopy size={13} />
                     {copiedText === caseData.ai_next_command ? 'Copied!' : 'Copy'}
                   </button>
@@ -558,9 +580,9 @@ export default function ReviewScreen({ caseId, onBack }: ReviewScreenProps) {
               </div>
 
               <div>
-                <label className="text-[12px] font-semibold text-[var(--text-muted)] uppercase tracking-wide block mb-1">Paste Output</label>
+                <label className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide block mb-1.5">Paste Output</label>
                 <textarea 
-                  className="input font-mono text-[13px]" rows={5}
+                  className="textarea-field font-mono text-[12px]" rows={5}
                   placeholder="Paste command output here..."
                   value={commandOutput} onChange={e => setCommandOutput(e.target.value)}
                 />
@@ -582,33 +604,33 @@ export default function ReviewScreen({ caseId, onBack }: ReviewScreenProps) {
         {/* Human Review */}
         {caseData.diagnosis_status === 'DIAGNOSED' && !caseData.review && (
           <div className="card">
-            <div className="card-header">
-              <h3 className="text-sm font-semibold text-[var(--text-secondary)] flex items-center gap-2">
+            <div className="card-header bg-[var(--bg-secondary)]/50">
+              <h3 className="card-title flex items-center gap-2">
                 <Check size={15} className="text-[var(--accent)]" /> Human Review
               </h3>
             </div>
-            <div className="card-body space-y-4">
+            <div className="card-body space-y-5">
               
-              <div className="p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-subtle)]">
-                <label className="text-[12px] font-semibold text-[var(--text-muted)] block mb-1">AI Diagnosis</label>
-                <p className="text-[var(--text-secondary)]">{caseData.ai_root_cause}</p>
+              <div className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-default)]">
+                <label className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide block mb-1.5">AI Diagnosis</label>
+                <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">{caseData.ai_root_cause}</p>
               </div>
 
               {reviewMode === 'none' && (
                 <div className="flex gap-2">
                   <button onClick={() => setReviewMode('accept')} className="btn btn-success">✓ Accept</button>
-                  <button onClick={() => setReviewMode('edit')} className="btn btn-warning">✎ Edit</button>
+                  <button onClick={() => setReviewMode('edit')} className="btn btn-secondary">✎ Edit</button>
                   <button onClick={() => setReviewMode('reject')} className="btn btn-danger">✕ Reject</button>
                 </div>
               )}
 
               {reviewMode === 'accept' && (
-                <div className="p-4 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-subtle)] space-y-3 max-w-lg">
-                  <p className="text-sm font-medium text-[var(--text-secondary)]">Confirm the AI diagnosis is correct?</p>
-                  <p className="text-sm text-[var(--text-muted)]">This moves the case to the fix and verification stage.</p>
+                <div className="p-4 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-default)] space-y-3 max-w-lg">
+                  <p className="text-[13px] font-medium text-[var(--text-secondary)]">Confirm the AI diagnosis is correct?</p>
+                  <p className="text-[12px] text-[var(--text-tertiary)]">This moves the case to the fix and verification stage.</p>
                   <div className="flex gap-2 justify-end">
-                    <button onClick={() => setReviewMode('none')} className="btn btn-secondary text-sm">Cancel</button>
-                    <button onClick={handleAcceptReview} disabled={reviewMutation.isPending} className="btn btn-success text-sm">
+                    <button onClick={() => setReviewMode('none')} className="btn btn-secondary">Cancel</button>
+                    <button onClick={handleAcceptReview} disabled={reviewMutation.isPending} className="btn btn-success">
                       {reviewMutation.isPending && <Loader2 size={14} className="animate-spin" />} Confirm
                     </button>
                   </div>
@@ -616,16 +638,16 @@ export default function ReviewScreen({ caseId, onBack }: ReviewScreenProps) {
               )}
 
               {reviewMode === 'reject' && (
-                <div className="p-4 bg-red-500/5 rounded-lg border border-red-500/15 space-y-3 max-w-lg">
-                  <p className="text-sm font-medium text-red-400">Provide a rejection reason:</p>
+                <div className="p-4 bg-[var(--danger)]/5 rounded-lg border border-[var(--danger)]/20 space-y-3 max-w-lg">
+                  <p className="text-[13px] font-medium text-[var(--danger)]">Provide a rejection reason:</p>
                   <textarea 
-                    className="input text-sm" rows={3}
+                    className="textarea-field" rows={3}
                     placeholder="Why is this diagnosis incorrect?" 
                     value={rejectReason} onChange={e => setRejectReason(e.target.value)}
                   />
                   <div className="flex gap-2 justify-end">
-                    <button onClick={() => setReviewMode('none')} className="btn btn-secondary text-sm">Cancel</button>
-                    <button onClick={handleRejectReview} disabled={reviewMutation.isPending || !rejectReason.trim()} className="btn btn-danger text-sm disabled:opacity-50">
+                    <button onClick={() => setReviewMode('none')} className="btn btn-secondary">Cancel</button>
+                    <button onClick={handleRejectReview} disabled={reviewMutation.isPending || !rejectReason.trim()} className="btn btn-danger disabled:opacity-50">
                       {reviewMutation.isPending && <Loader2 size={14} className="animate-spin" />} Reject
                     </button>
                   </div>
@@ -633,49 +655,49 @@ export default function ReviewScreen({ caseId, onBack }: ReviewScreenProps) {
               )}
 
               {reviewMode === 'edit' && (
-                <div className="p-4 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-subtle)] space-y-3">
-                  <h4 className="text-sm font-semibold text-[var(--text-secondary)]">Edit Diagnosis</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-5 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-default)] space-y-4">
+                  <h4 className="text-[14px] font-semibold text-[var(--text-secondary)]">Edit Diagnosis</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-[12px] font-semibold text-[var(--text-muted)] block mb-1">Root Cause</label>
-                      <input type="text" className="input text-sm" value={editRootCause} onChange={e => setEditRootCause(e.target.value)} />
+                      <label className="input-label">Root Cause</label>
+                      <input type="text" className="input-field" value={editRootCause} onChange={e => setEditRootCause(e.target.value)} />
                     </div>
                     <div>
-                      <label className="text-[12px] font-semibold text-[var(--text-muted)] block mb-1">OSI Layer</label>
-                      <input type="text" className="input text-sm" value={editOsiLayer} onChange={e => setEditOsiLayer(e.target.value)} />
+                      <label className="input-label">OSI Layer</label>
+                      <input type="text" className="input-field" value={editOsiLayer} onChange={e => setEditOsiLayer(e.target.value)} />
                     </div>
                     <div>
-                      <label className="text-[12px] font-semibold text-[var(--text-muted)] block mb-1">Confidence</label>
-                      <select className="input text-sm" value={editConfidence} onChange={e => setEditConfidence(e.target.value)}>
+                      <label className="input-label">Confidence</label>
+                      <select className="input-field" value={editConfidence} onChange={e => setEditConfidence(e.target.value)}>
                         <option value="High">High</option>
                         <option value="Medium">Medium</option>
                         <option value="Low">Low</option>
                       </select>
                     </div>
                     <div>
-                      <label className="text-[12px] font-semibold text-[var(--text-muted)] block mb-1">Evidence</label>
-                      <input type="text" className="input text-sm" value={editEvidence} onChange={e => setEditEvidence(e.target.value)} />
+                      <label className="input-label">Evidence</label>
+                      <input type="text" className="input-field" value={editEvidence} onChange={e => setEditEvidence(e.target.value)} />
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="text-[12px] font-semibold text-[var(--text-muted)] block mb-1">Analysis Explanation</label>
-                      <textarea className="input text-sm" rows={2} value={editReasonText} onChange={e => setEditReasonText(e.target.value)} />
+                      <label className="input-label">Analysis Explanation</label>
+                      <textarea className="textarea-field min-h-[60px]" rows={2} value={editReasonText} onChange={e => setEditReasonText(e.target.value)} />
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="text-[12px] font-semibold text-[var(--text-muted)] block mb-1">Fix Steps</label>
-                      <textarea className="input text-sm font-mono" rows={2} value={editFixSteps} onChange={e => setEditFixSteps(e.target.value)} />
+                      <label className="input-label">Fix Steps</label>
+                      <textarea className="textarea-field font-mono text-[12px] min-h-[60px]" rows={2} value={editFixSteps} onChange={e => setEditFixSteps(e.target.value)} />
                     </div>
                     <div>
-                      <label className="text-[12px] font-semibold text-[var(--text-muted)] block mb-1">Verification Command</label>
-                      <input type="text" className="input text-sm font-mono" value={editVerificationCommand} onChange={e => setEditVerificationCommand(e.target.value)} />
+                      <label className="input-label">Verification Command</label>
+                      <input type="text" className="input-field font-mono text-[12px]" value={editVerificationCommand} onChange={e => setEditVerificationCommand(e.target.value)} />
                     </div>
                     <div>
-                      <label className="text-[12px] font-semibold text-[var(--text-muted)] block mb-1">Override Reason *</label>
-                      <input type="text" className="input text-sm" placeholder="Why are you overriding?" value={editReason} onChange={e => setEditReason(e.target.value)} />
+                      <label className="input-label text-[var(--warning)]">Override Reason *</label>
+                      <input type="text" className="input-field border-[var(--warning)]/50 focus:border-[var(--warning)] focus:ring-[var(--warning)]" placeholder="Why are you overriding?" value={editReason} onChange={e => setEditReason(e.target.value)} />
                     </div>
                   </div>
-                  <div className="flex gap-2 justify-end pt-2 border-t border-[var(--border-subtle)]">
-                    <button onClick={() => setReviewMode('none')} className="btn btn-secondary text-sm">Cancel</button>
-                    <button onClick={handleEditReview} disabled={reviewMutation.isPending || !editReason.trim()} className="btn btn-warning text-sm disabled:opacity-50">
+                  <div className="flex gap-2 justify-end pt-3 border-t border-[var(--border-subtle)]">
+                    <button onClick={() => setReviewMode('none')} className="btn btn-secondary">Cancel</button>
+                    <button onClick={handleEditReview} disabled={reviewMutation.isPending || !editReason.trim()} className="btn btn-warning disabled:opacity-50">
                       {reviewMutation.isPending && <Loader2 size={14} className="animate-spin" />} Save Override
                     </button>
                   </div>
@@ -688,23 +710,23 @@ export default function ReviewScreen({ caseId, onBack }: ReviewScreenProps) {
         {/* Review Status */}
         {isReviewed && (
           <div className={`card p-4 flex items-start gap-3 ${
-            caseData.review?.status === 'Accepted' ? 'border-green-500/20 bg-green-500/5' :
-            caseData.review?.status === 'Edited' ? 'border-amber-500/20 bg-amber-500/5' :
-            'border-red-500/20 bg-red-500/5'
+            caseData.review?.status === 'Accepted' ? 'border-[var(--success)]/20 bg-[var(--success)]/5' :
+            caseData.review?.status === 'Edited' ? 'border-[var(--warning)]/20 bg-[var(--warning)]/5' :
+            'border-[var(--danger)]/20 bg-[var(--danger)]/5'
           }`}>
             <CheckCircle2 size={18} className={
-              caseData.review?.status === 'Accepted' ? 'text-green-400' :
-              caseData.review?.status === 'Edited' ? 'text-amber-400' : 'text-red-400'
+              caseData.review?.status === 'Accepted' ? 'text-[var(--success)]' :
+              caseData.review?.status === 'Edited' ? 'text-[var(--warning)]' : 'text-[var(--danger)]'
             } />
             <div>
-              <p className="font-semibold text-sm">
+              <p className="font-semibold text-[13px] text-[var(--text-primary)]">
                 Review Decision: <span className={
-                  caseData.review?.status === 'Accepted' ? 'text-green-400' :
-                  caseData.review?.status === 'Edited' ? 'text-amber-400' : 'text-red-400'
+                  caseData.review?.status === 'Accepted' ? 'text-[var(--success)]' :
+                  caseData.review?.status === 'Edited' ? 'text-[var(--warning)]' : 'text-[var(--danger)]'
                 }>{caseData.review?.status}</span>
               </p>
               {caseData.review?.reason && (
-                <div className="mt-2 text-sm text-[var(--text-tertiary)] leading-relaxed">
+                <div className="mt-1.5 text-[12px] text-[var(--text-tertiary)] leading-relaxed">
                   {caseData.review.reason.startsWith('{') ? (() => {
                     try {
                       const p = JSON.parse(caseData.review.reason);
@@ -720,32 +742,34 @@ export default function ReviewScreen({ caseId, onBack }: ReviewScreenProps) {
         {/* Fix Steps */}
         {isAcceptedOrEdited && !inVerificationMode && (
           <div className="card">
-            <div className="card-header flex items-center gap-2">
-              <Terminal size={15} className="text-[var(--accent)]" />
-              <h3 className="text-sm font-semibold text-[var(--text-secondary)]">Recommended Fix</h3>
+            <div className="card-header bg-transparent border-none">
+              <h3 className="card-title flex items-center gap-2">
+                <Terminal size={15} className="text-[var(--accent)]" />
+                Recommended Fix
+              </h3>
             </div>
-            <div className="card-body space-y-4">
-              <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/15 text-sm text-amber-300/80">
+            <div className="card-body pt-0 space-y-4">
+              <div className="p-3 rounded-lg bg-[var(--warning)]/10 border border-[var(--warning)]/20 text-[12px] text-[var(--warning)]">
                 ⚠ Manual action required. Apply these commands in Cisco Packet Tracer. NetSage does not modify live devices.
               </div>
 
               <div>
-                <label className="text-[12px] font-semibold text-[var(--text-muted)] uppercase tracking-wide block mb-1">Fix Commands</label>
-                <pre className="p-3 bg-[#050507] rounded-lg border border-[var(--border-subtle)] font-mono text-[13px] text-[var(--text-secondary)] whitespace-pre-wrap overflow-x-auto">
-                  {caseData.ai_fix_steps}
+                <label className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide block mb-1.5">Fix Commands</label>
+                <pre className="terminal-block whitespace-pre-wrap break-all">
+                  {caseData.ai_fix_steps || 'No automated fix commands were identified.'}
                 </pre>
               </div>
 
               {caseData.ai_verification_command && (
                 <div>
-                  <label className="text-[12px] font-semibold text-[var(--text-muted)] uppercase tracking-wide block mb-1">Verification Command</label>
-                  <code className="block p-2 bg-[#050507] rounded-lg border border-[var(--border-subtle)] font-mono text-green-400 text-sm">
+                  <label className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide block mb-1.5">Verification Command</label>
+                  <code className="terminal-block py-2 block text-green-400">
                     {caseData.ai_verification_command}
                   </code>
                 </div>
               )}
 
-              <button onClick={() => setInVerificationMode(true)} className="btn btn-primary w-full justify-center">
+              <button onClick={() => setInVerificationMode(true)} className="btn btn-primary w-full mt-2 justify-center">
                 Proceed to Verification →
               </button>
             </div>
@@ -755,27 +779,29 @@ export default function ReviewScreen({ caseId, onBack }: ReviewScreenProps) {
         {/* Verification */}
         {inVerificationMode && (
           <div className="card">
-            <div className="card-header flex items-center gap-2">
-              <CheckCircle2 size={15} className="text-[var(--accent)]" />
-              <h3 className="text-sm font-semibold text-[var(--text-secondary)]">Verification</h3>
+            <div className="card-header bg-[var(--bg-secondary)]/50">
+              <h3 className="card-title flex items-center gap-2">
+                <CheckCircle2 size={15} className="text-[var(--accent)]" />
+                Verification
+              </h3>
             </div>
-            <div className="card-body space-y-4">
+            <div className="card-body space-y-5">
               <div>
-                <label className="text-[12px] font-semibold text-[var(--text-muted)] uppercase tracking-wide block mb-1">Run This Command</label>
-                <div className="flex items-center justify-between p-3 bg-[#050507] rounded-lg border border-[var(--border-subtle)] font-mono text-sm">
+                <label className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide block mb-1.5">Run This Command</label>
+                <div className="flex items-center justify-between p-2.5 terminal-block">
                   <code className="text-green-400 select-all">
                     {caseData.ai_verification_command || editVerificationCommand || 'show ip interface brief'}
                   </code>
-                  <button onClick={() => handleCopy(caseData.ai_verification_command || editVerificationCommand || '')} className="btn btn-ghost text-[12px] py-1 px-2">
+                  <button onClick={() => handleCopy(caseData.ai_verification_command || editVerificationCommand || '')} className="btn btn-secondary text-[11px] py-1 px-2 h-auto">
                     <Copy size={13} /> {copiedText === (caseData.ai_verification_command || editVerificationCommand) ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="text-[12px] font-semibold text-[var(--text-muted)] uppercase tracking-wide block mb-1">Paste Output</label>
+                <label className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide block mb-1.5">Paste Output</label>
                 <textarea 
-                  className="input font-mono text-[13px]" rows={6}
+                  className="textarea-field font-mono text-[12px]" rows={6}
                   placeholder="Paste verification output here..."
                   value={verificationOutput} onChange={e => setVerificationOutput(e.target.value)}
                 />
@@ -791,21 +817,22 @@ export default function ReviewScreen({ caseId, onBack }: ReviewScreenProps) {
 
               {/* Result */}
               {(caseData.diagnosis_status === 'RESOLVED' || caseData.diagnosis_status === 'NOT_RESOLVED') && (
-                <div className={`p-4 rounded-lg flex items-center gap-3 font-semibold ${
+                <div className={`p-4 rounded-lg flex items-center justify-center gap-2 font-semibold text-[14px] ${
                   caseData.diagnosis_status === 'RESOLVED' 
-                    ? 'bg-green-500/10 border border-green-500/20 text-green-400' 
-                    : 'bg-red-500/10 border border-red-500/20 text-red-400'
+                    ? 'bg-[var(--success)]/10 border border-[var(--success)]/20 text-[var(--success)]' 
+                    : 'bg-[var(--danger)]/10 border border-[var(--danger)]/20 text-[var(--danger)]'
                 }`}>
                   {caseData.diagnosis_status === 'RESOLVED' ? (
-                    <><CheckCircle2 size={18} /> Issue Resolved Successfully</>
+                    <><CheckCircle2 size={16} /> Issue Resolved Successfully</>
                   ) : (
-                    <><XCircle size={18} /> Issue Not Resolved — Further Investigation Needed</>
+                    <><XCircle size={16} /> Issue Not Resolved. Return to Troubleshooting.</>
                   )}
                 </div>
               )}
             </div>
           </div>
         )}
+
       </div>
     </div>
   );

@@ -19,8 +19,24 @@ class CaseBase(BaseModel):
     expected_fix: Optional[str] = None
     verification_command: Optional[str] = None
 
-class CaseCreate(CaseBase):
-    pass
+class CaseCreate(BaseModel):
+    symptom: str
+    topology_note: str
+    show_outputs: str
+    
+    # Optional fields for dynamic cases
+    category: Optional[str] = "Dynamic"
+    difficulty: Optional[str] = "Unknown"
+    diagnosis_type: Optional[str] = "Dynamic"
+    
+    # Ground truth fields are not expected for dynamic ingestion
+    expected_fault: Optional[str] = "Unknown"
+    osi_layer: Optional[str] = "Unknown"
+    concept_tag: Optional[str] = "Dynamic"
+    severity: Optional[str] = "Unknown"
+    expected_next_command: Optional[str] = None
+    expected_fix: Optional[str] = None
+    verification_command: Optional[str] = None
 
 class CaseResponse(CaseBase):
     id: int

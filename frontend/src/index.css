@@ -1,54 +1,56 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
+@import "tailwindcss";
 /* ============================================
-   NETSAGE AI — Design System v3
-   Inspired by: Linear, Vercel, Raycast
-   Clean. Spacious. Professional.
+   NETSAGE AI — Exact UI Redesign
+   Professional Dark Enterprise Dashboard
    ============================================ */
 
 @layer base {
   :root {
-    --bg-primary: #09090b;
-    --bg-secondary: #111113;
-    --bg-elevated: #18181b;
-    --bg-hover: #1f1f23;
-    --bg-active: #27272a;
+    --bg-app: #151515;       /* Main application background */
+    --bg-sidebar: #111214;   /* Single professional sidebar */
+    --bg-card: #1B1D21;      /* Cards and panels */
+    --bg-input: #15171A;     /* Textareas and inputs */
+    --bg-hover: rgba(255, 255, 255, 0.04);
+    --bg-active: rgba(139, 92, 246, 0.15); /* Subtle purple */
 
-    --border-subtle: #1e1e22;
-    --border-default: #27272a;
-    --border-strong: #3f3f46;
+    --border-subtle: rgba(255, 255, 255, 0.06);
+    --border-default: #2A2D32;
+    --border-strong: rgba(255, 255, 255, 0.2);
 
-    --text-primary: #fafafa;
-    --text-secondary: #a1a1aa;
-    --text-tertiary: #71717a;
-    --text-muted: #52525b;
+    --text-primary: #F3F4F6; /* Near white */
+    --text-secondary: #9CA3AF; /* Muted gray */
+    --text-tertiary: #6B7280;
+    --text-muted: #4B5563;
 
-    --accent: #3b82f6;
-    --accent-hover: #60a5fa;
-    --accent-muted: rgba(59, 130, 246, 0.12);
+    --accent: #8b5cf6;       /* Violet accent */
+    --accent-hover: #a78bfa;
+    --accent-muted: rgba(139, 92, 246, 0.15);
 
-    --success: #22c55e;
-    --warning: #eab308;
-    --danger: #ef4444;
-    --info: #06b6d4;
+    --success: #10b981; /* Emerald/Green */
+    --warning: #f59e0b; /* Amber */
+    --danger: #ef4444;  /* Red */
+    --info: #3b82f6;
   }
 }
 
 @layer base {
   * {
-    border-color: var(--border-subtle);
+    border-color: var(--border-default);
   }
 
   body {
-    background-color: var(--bg-primary);
+    background-color: var(--bg-app);
     color: var(--text-primary);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 14px;
-    line-height: 1.6;
+    font-size: 13px;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
   }
 
   code, pre, .font-mono {
@@ -56,12 +58,12 @@
   }
 
   h1, h2, h3, h4 {
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
     font-weight: 600;
   }
 
   ::selection {
-    background: rgba(59, 130, 246, 0.3);
+    background: rgba(139, 92, 246, 0.3);
   }
 }
 
@@ -356,10 +358,162 @@
   animation: spin 0.6s linear infinite;
 }
 
-/* ---- Tooltip / Recharts override ---- */
+@layer components {
+  /* Layout */
+  .page-container {
+    max-width: 72rem;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 1.5rem;
+    animation: fadeIn 0.3s ease-out forwards;
+  }
+  
+  .page-container > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 1.5rem;
+  }
+  
+  .page-header {
+    @apply mb-6;
+  }
+  
+  .page-title {
+    @apply text-[24px] font-semibold text-[var(--text-primary)] mb-1;
+  }
+  
+  .page-description {
+    @apply text-[13px] text-[var(--text-secondary)];
+  }
+
+  /* Cards */
+  .card {
+    @apply bg-[var(--bg-card)] rounded-[12px] border border-[var(--border-default)] shadow-sm overflow-hidden flex flex-col;
+  }
+
+  .card-header {
+    @apply px-5 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between;
+  }
+
+  .card-title {
+    @apply text-[15px] font-semibold text-[var(--text-primary)];
+  }
+  
+  .card-description {
+    @apply text-[12px] text-[var(--text-secondary)] mt-1;
+  }
+
+  .card-body {
+    @apply p-5 flex-1;
+  }
+
+  /* Forms & Inputs */
+  .input-label {
+    @apply block text-[13px] font-medium text-[var(--text-primary)] mb-1.5;
+  }
+
+  .input-field {
+    @apply w-full bg-[var(--bg-input)] border border-[var(--border-default)] rounded-[8px] px-3 py-2 text-[13px] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition placeholder-[var(--text-tertiary)];
+  }
+
+  .textarea-field {
+    @apply w-full bg-[var(--bg-input)] border border-[var(--border-default)] rounded-[8px] px-3 py-2 text-[13px] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition placeholder-[var(--text-tertiary)] min-h-[100px] resize-y;
+  }
+
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-[8px] text-[13px] font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--bg-app)] disabled:opacity-50 disabled:cursor-not-allowed select-none;
+  }
+
+  .btn-primary {
+    @apply bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white focus:ring-[var(--accent)];
+  }
+
+  .btn-secondary {
+    @apply bg-white/5 hover:bg-white/10 text-[var(--text-primary)] border border-[var(--border-default)] focus:ring-white/20;
+  }
+
+  .btn-danger {
+    @apply bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 text-[var(--danger)] border border-[var(--danger)]/20 focus:ring-[var(--danger)];
+  }
+  
+  .btn-success {
+    @apply bg-[var(--success)] hover:bg-[#059669] text-white focus:ring-[var(--success)];
+  }
+
+  /* Badges */
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium;
+  }
+
+  .badge-success { @apply bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/20; }
+  .badge-warning { @apply bg-[var(--warning)]/10 text-[var(--warning)] border border-[var(--warning)]/20; }
+  .badge-danger { @apply bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20; }
+  .badge-info { @apply bg-[var(--info)]/10 text-[var(--info)] border border-[var(--info)]/20; }
+  .badge-neutral { @apply bg-white/5 text-[var(--text-secondary)] border border-[var(--border-default)]; }
+  .badge-accent { @apply bg-[var(--accent)]/10 text-[var(--accent-hover)] border border-[var(--accent)]/20; }
+
+  /* Tables */
+  .table-container {
+    @apply w-full overflow-x-auto;
+  }
+  
+  .table {
+    @apply w-full text-left border-collapse;
+  }
+  
+  .table th {
+    @apply px-4 py-3 text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider border-b border-[var(--border-default)] bg-black/20;
+  }
+  
+  .table td {
+    @apply px-4 py-3 text-[13px] border-b border-[var(--border-subtle)] whitespace-nowrap;
+  }
+  
+  .table tr:last-child td {
+    @apply border-b-0;
+  }
+  
+  .table tr:hover td {
+    @apply bg-[var(--bg-hover)];
+  }
+}
+
+/* Animations */
+.animate-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Scrollbar customization */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
+
+/* Recharts Tooltip */
 .recharts-default-tooltip {
-  background: var(--bg-elevated) !important;
-  border-color: var(--border-default) !important;
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-default) !important;
   border-radius: 8px !important;
-  font-size: 12px !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+}
+.recharts-tooltip-item-name, .recharts-tooltip-item-separator {
+  color: var(--text-secondary) !important;
+}
+.recharts-tooltip-item-value {
+  color: var(--text-primary) !important;
+  font-weight: 500 !important;
 }

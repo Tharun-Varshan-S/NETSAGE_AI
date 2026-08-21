@@ -1,7 +1,9 @@
 import argparse
-import sys
-from app.services.rule_checker.checks import run_all_checks
 import json
+import sys
+
+from app.services.rule_checker.checks import run_all_checks
+
 
 def main():
     parser = argparse.ArgumentParser(description="Run deterministic rule checker on network outputs.")

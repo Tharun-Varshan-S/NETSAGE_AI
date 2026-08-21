@@ -69,3 +69,16 @@
 }
 ```
 ---
+2026-08-13T07:44:16.978651 - CASE:34
+{
+  "status": "DIAGNOSED",
+  "root_cause": "The GigabitEthernet0/1 interface, which serves as the gateway, is administratively shut down.",
+  "osi_layer": "Layer 1 (Physical)",
+  "confidence": "High",
+  "evidence": "GigabitEthernet0/1         192.168.2.1     YES manual administratively down down\nRule: INTERFACE_DOWN, Status: DETECTED, Details: ['Interface GigabitEthernet0/1 is administratively down/down']",
+  "reason": "The 'show ip interface brief' output explicitly states that GigabitEthernet0/1 is 'administratively down', which directly causes the protocol to be down and prevents connectivity for any host connected to it. This finding is also corroborated by the INTERFACE_DOWN rule.",
+  "next_command": null,
+  "fix_steps": "interface GigabitEthernet0/1\n no shutdown",
+  "verification_command": "show ip interface brief"
+}
+---

@@ -1,7 +1,8 @@
 import sys
 import time
-import requests
 from pathlib import Path
+
+import requests
 
 # Add backend to path so we can import app modules if needed
 backend_dir = Path(__file__).resolve().parent.parent

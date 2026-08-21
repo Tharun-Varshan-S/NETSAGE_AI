@@ -1,12 +1,14 @@
-from typing import Dict, Any, List
+from typing import Any
+
 from .rule_checker.checks import (
     check_duplicate_ips,
-    check_wrong_masks,
     check_gateway_mismatch,
     check_interface_down,
+    check_missing_routes,
     check_missing_vlan,
-    check_missing_routes
+    check_wrong_masks,
 )
+
 
 class RuleOrchestrator:
     """
@@ -14,7 +16,7 @@ class RuleOrchestrator:
     """
     
     @staticmethod
-    def run_all(show_outputs: str, evidence: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def run_all(show_outputs: str, evidence: dict[str, Any]) -> list[dict[str, Any]]:
         results = [
             check_duplicate_ips(show_outputs, evidence),
             check_wrong_masks(show_outputs, evidence),

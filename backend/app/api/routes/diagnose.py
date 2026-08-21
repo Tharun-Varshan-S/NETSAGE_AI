@@ -1,8 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+
+from app.api.deps import get_current_user
 from app.database import get_db
 from app.models.case import Case
-from app.schemas.diagnosis import DiagnosisResponse, CommandInput
+from app.models.user import User
+from app.schemas.diagnosis import CommandInput, DiagnosisResponse
 from app.services.ai_diagnosis import run_diagnosis
 from app.services.evidence_processor import EvidenceProcessor
 from app.services.rule_orchestrator import RuleOrchestrator
@@ -43,7 +46,7 @@ def process_and_diagnose(case: Case, db: Session) -> DiagnosisResponse:
     return diagnosis_data
 
 @router.post("/{case_id}", response_model=DiagnosisResponse)
-def diagnose_case(case_id: int, db: Session = Depends(get_db)):
+def diagnose_case(case_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     case = db.query(Case).filter(Case.id == case_id).first()
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
@@ -51,7 +54,7 @@ def diagnose_case(case_id: int, db: Session = Depends(get_db)):
     return process_and_diagnose(case, db)
 
 @router.post("/{case_id}/command-output", response_model=DiagnosisResponse)
-def submit_command_output(case_id: int, input_data: CommandInput, db: Session = Depends(get_db)):
+def submit_command_output(case_id: int, input_data: CommandInput, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     case = db.query(Case).filter(Case.id == case_id).first()
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")

@@ -1,6 +1,8 @@
-from sqlalchemy import Column, Integer, String, Text, JSON
+from sqlalchemy import JSON, Column, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
+
 from app.database import Base
+
 
 class Case(Base):
     __tablename__ = "cases"
@@ -39,5 +41,9 @@ class Case(Base):
     diagnosis_status = Column(String, nullable=True, default="NEEDS_INFO")
     session_history = Column(JSON, nullable=True, default=list)
 
-    # Relationship to review
+    # RBAC fields
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True) # nullable for backwards compat
+
+    # Relationship to review and user
     review = relationship("Review", back_populates="case", uselist=False)
+    creator = relationship("User", back_populates="cases")

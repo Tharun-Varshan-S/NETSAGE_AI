@@ -1,7 +1,10 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime
+from datetime import UTC, datetime
+
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
-from datetime import datetime, timezone
+
 from app.database import Base
+
 
 class Review(Base):
     __tablename__ = "reviews"
@@ -15,6 +18,10 @@ class Review(Base):
     # Reason for editing or rejecting
     reason = Column(Text, nullable=True)
     
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+
+    # RBAC field
+    reviewer_id = Column(Integer, ForeignKey("users.id"), nullable=True) # nullable for backwards compat
 
     case = relationship("Case", back_populates="review")
+    reviewer = relationship("User", back_populates="reviews")

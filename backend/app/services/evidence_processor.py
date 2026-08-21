@@ -1,5 +1,6 @@
 import re
-from typing import Dict, Any, List
+from typing import Any
+
 
 class EvidenceProcessor:
     """
@@ -9,7 +10,7 @@ class EvidenceProcessor:
     """
     
     @staticmethod
-    def process(symptoms: str, topology: str, show_outputs: str) -> Dict[str, Any]:
+    def process(symptoms: str, topology: str, show_outputs: str) -> dict[str, Any]:
         evidence = {
             "interfaces": EvidenceProcessor._extract_interfaces(show_outputs),
             "vlans": EvidenceProcessor._extract_vlans(show_outputs),
@@ -25,7 +26,7 @@ class EvidenceProcessor:
         return evidence
 
     @staticmethod
-    def _extract_interfaces(show_outputs: str) -> List[Dict[str, str]]:
+    def _extract_interfaces(show_outputs: str) -> list[dict[str, str]]:
         """
         Extracts interface information from 'show ip interface brief' style outputs.
         Example line: GigabitEthernet0/0    192.168.1.1     YES manual up                    up 
@@ -48,7 +49,7 @@ class EvidenceProcessor:
         return interfaces
 
     @staticmethod
-    def _extract_vlans(show_outputs: str) -> List[Dict[str, str]]:
+    def _extract_vlans(show_outputs: str) -> list[dict[str, str]]:
         """
         Extracts VLAN information.
         Example line: 10   Payroll                          active    Fa0/1, Fa0/2
@@ -70,7 +71,7 @@ class EvidenceProcessor:
         return vlans
 
     @staticmethod
-    def _extract_routes(show_outputs: str) -> List[str]:
+    def _extract_routes(show_outputs: str) -> list[str]:
         """
         Extracts known routes. Returns raw route strings for now.
         """

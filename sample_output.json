@@ -1,0 +1,10 @@
+{
+  "rule": "INTERFACE_DOWN",
+  "status": "DETECTED",
+  "severity": "HIGH",
+  "confidence": 1.0,
+  "evidence": [
+    "Interface GigabitEthernet0/1 is administratively down/down"
+  ],
+  "source": "show ip interface brief"
+}

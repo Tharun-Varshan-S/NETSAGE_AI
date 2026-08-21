@@ -32,7 +32,8 @@ export default function HumanReviews() {
 
   const reviewedCases = cases.filter(c => c.review);
 
-  const parseEdited = (reason: string) => {
+  const parseEdited = (reason?: string) => {
+    if (!reason) return { comment: '', editedDiag: null };
     try {
       const parsed = JSON.parse(reason);
       return { 

@@ -5,10 +5,13 @@ import ReviewScreen from './pages/ReviewScreen';
 import Cases from './pages/Cases';
 import HumanReviews from './pages/HumanReviews';
 import Evaluation from './pages/Evaluation';
+import Login from './pages/Login';
 import { 
   LayoutDashboard, Plus, FolderKanban, UserCheck, ChartNoAxesCombined, Network, Terminal, Search,
-  Settings, Bell, Menu, Activity, ChevronDown
+  Settings, Bell, Menu, Activity, LogOut
 } from 'lucide-react';
+
+import { Toaster } from 'react-hot-toast';
 
 type ActivePage = 'dashboard' | 'diagnose' | 'cases' | 'reviews' | 'evaluation' | 'diagnostics' | 'cli';
 
@@ -17,6 +20,37 @@ export default function App() {
   const [activeCaseId, setActiveCaseId] = useState<number | null>(null);
   const [activeCaseIdString, setActiveCaseIdString] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [username, setUsername] = useState<string | null>(localStorage.getItem('username'));
+  const [role, setRole] = useState<string | null>(localStorage.getItem('role'));
+
+  const handleLoginSuccess = (newToken: string, newUsername: string, newRole: string) => {
+    localStorage.setItem('token', newToken);
+    localStorage.setItem('username', newUsername);
+    localStorage.setItem('role', newRole);
+    setToken(newToken);
+    setUsername(newUsername);
+    setRole(newRole);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('username');
+    localStorage.removeItem('role');
+    setToken(null);
+    setUsername(null);
+    setRole(null);
+  };
+
+  if (!token) {
+    return (
+      <>
+        <Toaster position="top-right" toastOptions={{ style: { background: '#333', color: '#fff' } }} />
+        <Login onLoginSuccess={handleLoginSuccess} />
+      </>
+    );
+  }
 
   const navigateToDiagnoseCase = (id: number, caseIdStr: string) => {
     setActiveCaseId(id);
@@ -64,6 +98,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen w-full bg-[var(--bg-app)] text-[var(--text-primary)] font-sans overflow-hidden">
+      <Toaster position="top-right" toastOptions={{ style: { background: '#333', color: '#fff' } }} />
       
       {/* ── Single Professional Sidebar ── */}
       <aside className={`${sidebarOpen ? 'w-[240px]' : 'w-0 hidden'} transition-all duration-300 flex flex-col bg-[var(--bg-sidebar)] border-r border-[var(--border-default)] shrink-0 z-20`}>
@@ -161,14 +196,19 @@ export default function App() {
               <span className="absolute -top-1 -right-1 w-2 h-2 bg-[var(--accent)] rounded-full border border-[var(--bg-app)]"></span>
             </button>
 
-            {/* Profile Dropdown */}
-            <div className="flex items-center gap-2 cursor-pointer hover:bg-[var(--bg-hover)] pl-2 pr-1 py-1 rounded-md transition-colors">
-              <div className="w-6 h-6 rounded bg-gradient-to-tr from-[var(--accent)] to-[var(--info)] flex items-center justify-center text-[10px] font-bold text-white">
-                TH
+            <div className="flex items-center gap-2 pl-2 pr-1 py-1 rounded-md transition-colors">
+              <div className="w-6 h-6 rounded bg-gradient-to-tr from-[var(--accent)] to-[var(--info)] flex items-center justify-center text-[10px] font-bold text-white uppercase">
+                {username ? username.substring(0, 2) : 'U'}
               </div>
-              <span className="text-[13px] font-medium text-white hidden sm:inline">Tharun</span>
-              <ChevronDown size={14} className="text-[var(--text-tertiary)]" />
+              <div className="flex flex-col hidden sm:flex">
+                <span className="text-[13px] font-medium text-white leading-tight capitalize">{username}</span>
+                <span className="text-[10px] text-[var(--text-tertiary)] uppercase">{role}</span>
+              </div>
             </div>
+
+            <button onClick={handleLogout} className="text-[var(--text-secondary)] hover:text-white transition-colors p-1" title="Log Out">
+              <LogOut size={16} />
+            </button>
           </div>
         </header>
 

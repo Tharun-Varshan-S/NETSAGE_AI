@@ -1,0 +1,15 @@
+SW-FLOOR1# show interfaces FastEthernet0/12 status
+
+Port      Name               Status       Vlan       Duplex  Speed Type
+Fa0/12    Cubicle_12         err-disabled 10         auto    auto  10/100BaseTX
+
+SW-FLOOR1# show port-security interface FastEthernet0/12
+Port Security              : Enabled
+Port Status                : Secure-shutdown
+Violation Mode             : Shutdown
+Maximum MAC Addresses      : 1
+Total MAC Addresses        : 1
+Configured MAC Addresses   : 0
+Sticky MAC Addresses       : 0
+Last Source Address:Vlan   : 0025.9612.ac41:10
+Security Violation Count   : 1

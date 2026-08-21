@@ -1,4 +1,4 @@
-import { Shield, Clock, AlertTriangle, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Clock, AlertTriangle, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export default function RecentCases() {
   const dummyCases = [

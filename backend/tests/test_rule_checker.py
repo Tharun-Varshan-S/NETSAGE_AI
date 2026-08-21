@@ -1,12 +1,10 @@
 import sys
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-import pytest
-from app.services.rule_checker.checks import (
-    check_interface_down,
-    check_duplicate_ips
-)
+from app.services.rule_checker.checks import check_duplicate_ips, check_interface_down
+
 
 def test_interface_down_rule():
     evidence = {

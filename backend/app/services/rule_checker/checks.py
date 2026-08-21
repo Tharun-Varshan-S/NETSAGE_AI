@@ -1,7 +1,8 @@
 import re
-from typing import Dict, List, Any
+from typing import Any
 
-def check_duplicate_ips(show_outputs: str, evidence: Dict[str, Any]) -> Dict[str, Any]:
+
+def check_duplicate_ips(show_outputs: str, evidence: dict[str, Any]) -> dict[str, Any]:
     if not evidence.get("has_interface_data"):
         return {
             "rule": "DUPLICATE_IP",
@@ -33,7 +34,7 @@ def check_duplicate_ips(show_outputs: str, evidence: Dict[str, Any]) -> Dict[str
         }
     return {"rule": "DUPLICATE_IP", "status": "NOT_DETECTED"}
 
-def check_wrong_masks(show_outputs: str, evidence: Dict[str, Any]) -> Dict[str, Any]:
+def check_wrong_masks(show_outputs: str, evidence: dict[str, Any]) -> dict[str, Any]:
     # We can't strictly know if it's wrong without context, but we check for suspicious ones
     if not show_outputs:
         return {"rule": "WRONG_MASK", "status": "INSUFFICIENT_EVIDENCE", "evidence": [], "reason": "No CLI outputs provided."}
@@ -55,7 +56,7 @@ def check_wrong_masks(show_outputs: str, evidence: Dict[str, Any]) -> Dict[str, 
         }
     return {"rule": "WRONG_MASK", "status": "NOT_DETECTED"}
 
-def check_gateway_mismatch(show_outputs: str, evidence: Dict[str, Any]) -> Dict[str, Any]:
+def check_gateway_mismatch(show_outputs: str, evidence: dict[str, Any]) -> dict[str, Any]:
     if not evidence.get("has_routing_data"):
          return {
             "rule": "GATEWAY_MISMATCH",
@@ -80,7 +81,7 @@ def check_gateway_mismatch(show_outputs: str, evidence: Dict[str, Any]) -> Dict[
         }
     return {"rule": "GATEWAY_MISMATCH", "status": "NOT_DETECTED"}
 
-def check_interface_down(show_outputs: str, evidence: Dict[str, Any]) -> Dict[str, Any]:
+def check_interface_down(show_outputs: str, evidence: dict[str, Any]) -> dict[str, Any]:
     if not evidence.get("has_interface_data"):
         return {
             "rule": "INTERFACE_DOWN",
@@ -110,7 +111,7 @@ def check_interface_down(show_outputs: str, evidence: Dict[str, Any]) -> Dict[st
         }
     return {"rule": "INTERFACE_DOWN", "status": "NOT_DETECTED"}
 
-def check_missing_vlan(show_outputs: str, evidence: Dict[str, Any]) -> Dict[str, Any]:
+def check_missing_vlan(show_outputs: str, evidence: dict[str, Any]) -> dict[str, Any]:
     if not evidence.get("has_vlan_data"):
         return {
             "rule": "MISSING_VLAN",
@@ -138,7 +139,7 @@ def check_missing_vlan(show_outputs: str, evidence: Dict[str, Any]) -> Dict[str,
         }
     return {"rule": "MISSING_VLAN", "status": "NOT_DETECTED"}
 
-def check_missing_routes(show_outputs: str, evidence: Dict[str, Any]) -> Dict[str, Any]:
+def check_missing_routes(show_outputs: str, evidence: dict[str, Any]) -> dict[str, Any]:
     if not evidence.get("has_routing_data"):
         return {
             "rule": "MISSING_ROUTES",

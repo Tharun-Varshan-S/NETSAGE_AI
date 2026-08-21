@@ -4,7 +4,7 @@ import { fetchCase, diagnoseCase, submitReview, submitCommandOutput } from '../a
 import { 
   ArrowLeft, AlertTriangle, X, Terminal, 
   Sparkles, CheckCircle2, XCircle, PlayCircle, Loader2, Copy,
-  Network, ClipboardCopy, AlertCircle, Check
+  ClipboardCopy, AlertCircle, Check
 } from 'lucide-react';
 import type { Case } from '../types/case';
 

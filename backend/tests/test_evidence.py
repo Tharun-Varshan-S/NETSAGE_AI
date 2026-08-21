@@ -1,9 +1,10 @@
 import sys
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-import pytest
 from app.services.evidence_processor import EvidenceProcessor
+
 
 def test_extract_interfaces():
     show_outputs = """

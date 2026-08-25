@@ -212,3 +212,331 @@
   "verification_command": "show ip route"
 }
 ---
+2026-08-25T04:34:51.440234 - CASE:33
+```json
+{
+  "status": "DIAGNOSED",
+  "root_cause": "Interface FastEthernet0/1 is administratively down, preventing network connectivity.",
+  "osi_layer": "Layer 1 (Physical)",
+  "confidence": "High",
+  "evidence": "FastEthernet0/1    192.168.1.1     YES manual administratively down down",
+  "reason": "The provided CLI output explicitly shows that interface FastEthernet0/1 is 'administratively down', which directly explains the inability to reach the web server. While the INTERFACE_DOWN rule reported INSUFFICIENT_EVIDENCE, the raw CLI output clearly indicates the interface's state.",
+  "next_command": null,
+  "fix_steps": "interface FastEthernet0/1\n no shutdown",
+  "verification_command": "show ip interface brief"
+}
+```
+---
+2026-08-25T04:35:23.017817 - CASE:34
+```json
+{
+  "status": "DIAGNOSED",
+  "root_cause": "The FastEthernet0/1 interface, which is likely in the path to the web server, is administratively down.",
+  "osi_layer": "Layer 1 (Physical)",
+  "confidence": "High",
+  "evidence": "FastEthernet0/1    192.168.1.1     YES manual administratively down down",
+  "reason": "The 'administratively down' status of FastEthernet0/1 directly prevents any traffic from passing through this interface, which would explain why the user cannot reach the web server if this interface is part of the network path.",
+  "next_command": null,
+  "fix_steps": "configure terminal\ninterface FastEthernet0/1\n no shutdown\nend",
+  "verification_command": "show ip interface brief"
+}
+```
+---
+2026-08-25T04:36:14.985878 - CASE:35
+```json
+{
+  "status": "DIAGNOSED",
+  "root_cause": "The interface FastEthernet0/1, which is part of the network path, is administratively down.",
+  "osi_layer": "Layer 1 (Physical)",
+  "confidence": "High",
+  "evidence": "FastEthernet0/1    192.168.1.1     YES manual administratively down down",
+  "reason": "The provided CLI output explicitly states that interface FastEthernet0/1 is 'administratively down', which prevents any traffic from passing through it. This directly explains why the user cannot reach the web server if this interface is in the path.",
+  "next_command": null,
+  "fix_steps": "configure terminal\ninterface FastEthernet0/1\n no shutdown\nend",
+  "verification_command": "show ip interface brief"
+}
+```
+---
+2026-08-25T04:36:54.308448 - CASE:36
+```json
+{
+  "status": "DIAGNOSED",
+  "root_cause": "The FastEthernet0/1 interface, which is likely in the path to the web server, is administratively down.",
+  "osi_layer": "Layer 1 (Physical)",
+  "confidence": "High",
+  "evidence": "FastEthernet0/1    192.168.1.1     YES manual administratively down down",
+  "reason": "The provided CLI output explicitly states that interface FastEthernet0/1 is 'administratively down' and its line protocol is 'down'. An administratively down interface cannot pass traffic, directly explaining the inability to reach the web server. This is a clear Layer 1 issue.",
+  "next_command": null,
+  "fix_steps": "configure terminal\ninterface FastEthernet0/1\n no shutdown\nend",
+  "verification_command": "show ip interface brief"
+}
+```
+---
+2026-08-25T04:46:09.440430 - CASE:33
+```json
+{
+  "status": "DIAGNOSED",
+  "root_cause": "The interface connecting to PC-ACCT-04 (GigabitEthernet0/5) is incorrectly assigned to VLAN 1 (default) instead of VLAN 20 (Accounting).",
+  "osi_layer": "Layer 2 (Data Link)",
+  "confidence": "High",
+  "evidence": "Topology Note states: 'Accounting devices are required to be on VLAN 20'. The output of 'show interface GigabitEthernet0/5 switchport' shows 'Access Mode VLAN: 1 (default)' for Gi0/5. The 'show vlan brief' output confirms Gi0/5 is currently part of VLAN 1.",
+  "reason": "PC-ACCT-04 is in the Accounting department and should be on VLAN 20, but its connected switchport (Gi0/5) is configured for VLAN 1. This prevents the PC from being on the correct network segment to access resources in VLAN 10 (payroll server) or even its own VLAN 20 segment.",
+  "next_command": null,
+  "fix_steps": "interface GigabitEthernet0/5\n switchport mode access\n switchport access vlan 20",
+  "verification_command": "show interface GigabitEthernet0/5 switchport"
+}
+```
+---
+2026-08-25T04:46:19.039185 - CASE:34
+```json
+{
+  "status": "DIAGNOSED",
+  "root_cause": "Native VLAN mismatch on the trunk link between SW-CORE-01 and SW-ACCESS-01. SW-CORE-01's GigabitEthernet0/1 is configured with Native VLAN 1, which conflicts with SW-ACCESS-01's GigabitEthernet0/1 configured with Native VLAN 99, as required by policy.",
+  "osi_layer": "Layer 2 (Data Link)",
+  "confidence": "High",
+  "evidence": "SW-CORE-01# show interfaces trunk output shows 'Native vlan 1' for Gi0/1. SW-ACCESS-01# show interfaces trunk output shows 'Native vlan 99' for Gi0/1. The syslog warning '%CDP-4-NATIVE_VLAN_MISMATCH' explicitly reports this mismatch, and the topology note confirms Native VLAN 99 is the required policy.",
+  "reason": "The provided `show interfaces trunk` outputs clearly show a discrepancy in the native VLAN configuration for GigabitEthernet0/1 on SW-CORE-01 (VLAN 1) and SW-ACCESS-01 (VLAN 99). This directly matches the reported CDP syslog warning and violates the stated management policy, causing the intermittent traffic drops.",
+  "next_command": null,
+  "fix_steps": "interface GigabitEthernet0/1\n switchport trunk native vlan 99",
+  "verification_command": "show interfaces trunk"
+}
+```
+---
+2026-08-25T04:46:29.692118 - CASE:35
+```json
+{
+  "status": "DIAGNOSED",
+  "root_cause": "VLAN 30, used for voice traffic, is not allowed on the trunk interface GigabitEthernet0/1 on switch SW-BR3-ACC01.",
+  "osi_layer": "Layer 2 (Data Link)",
+  "confidence": "High",
+  "evidence": "SW-BR3-ACC01# show interfaces GigabitEthernet0/1 switchport\nTrunking VLANs Enabled: 10,15,20\n\nSW-BR3-ACC01# show interfaces trunk\nPort        VLANs allowed on trunk\nGi0/1       10,15,20",
+  "reason": "The VoIP phone is failing to configure an IP, indicating it cannot communicate on its assigned VLAN 30. The switch's trunk interface Gi0/1, which connects to the router and should carry VLAN 30 traffic, is explicitly configured to only allow VLANs 10, 15, and 20. This prevents VLAN 30 traffic from traversing the trunk, explaining the phone's inability to obtain an IP address. The PC on VLAN 15 works because VLAN 15 is allowed on the trunk.",
+  "next_command": null,
+  "fix_steps": "configure terminal\ninterface GigabitEthernet0/1\nswitchport trunk allowed vlan add 30\nend",
+  "verification_command": "show interfaces trunk"
+}
+```
+---
+2026-08-25T04:46:42.804202 - CASE:36
+```json
+{
+  "status": "DIAGNOSED",
+  "root_cause": "The workstation PC-ENG-12 is configured with an incorrect default gateway IP address.",
+  "osi_layer": "Layer 3 (Network)",
+  "confidence": "High",
+  "evidence": "PC-ENG-12's `ipconfig /all` output shows 'Default Gateway . . . . . . . . . : 192.168.10.254'. The topology note explicitly states 'The default gateway interface on core router R1-HQ is GigabitEthernet0/0/0 configured with IP 192.168.10.1'. Furthermore, `ping 192.168.10.254` from PC-ENG-12 results in 'Destination host unreachable', indicating the configured gateway is not present or reachable on the local network.",
+  "reason": "PC-ENG-12 is configured to use 192.168.10.254 as its default gateway, but the actual default gateway for the 192.168.10.0/24 subnet on router R1-HQ is 192.168.10.1. The workstation cannot reach its configured gateway, preventing it from sending traffic outside its local subnet, which aligns with the reported symptom of being unable to access intranet servers or external websites while still being able to ping other local computers.",
+  "next_command": null,
+  "fix_steps": "On PC-ENG-12, change the default gateway IP address from 192.168.10.254 to 192.168.10.1.",
+  "verification_command": "ping 192.168.10.1 && ping 8.8.8.8"
+}
+```
+---
+2026-08-25T04:47:01.667297 - CASE:37
+```json
+{
+  "status": "DIAGNOSED",
+  "root_cause": "Subnet mask mismatch on router interface R-DC-01 GigabitEthernet0/0/1. The interface is configured with a /25 subnet mask (255.255.255.128), while the Application Server SRV-APP-02 and the intended DMZ segment are configured for a /24 subnet mask (255.255.255.0).",
+  "osi_layer": "Layer 3 (Network)",
+  "confidence": "High",
+  "evidence": "R-DC-01# show running-config interface GigabitEthernet0/0/1 shows 'ip address 10.100.4.1 255.255.255.128'. SRV-APP-02 Network Config shows 'Netmask: 255.255.255.0'. The Topology Note explicitly states 'The subnet allocated for this DMZ segment is 10.100.4.0/24 (255.255.255.0)'.",
+  "reason": "The router's interface Gi0/0/1 is configured with a /25 subnet mask, which means it only considers hosts in the 10.100.4.0-10.100.4.127 range to be on its directly connected segment. The server SRV-APP-02 and the overall segment are intended to be /24 (10.100.4.0-10.100.4.255). This mismatch causes hosts in the 10.100.4.128/25 range (like 10.100.4.140) to be considered off-subnet by the router, even though the server considers them local, leading to erratic connectivity and failed pings from those clients.",
+  "next_command": null,
+  "fix_steps": "interface GigabitEthernet0/0/1\n ip address 10.100.4.1 255.255.255.0",
+  "verification_command": "ping 10.100.4.50"
+}
+```
+---
+2026-08-25T04:49:09.629689 - CASE:38
+```json
+{
+  "status": "DIAGNOSED",
+  "root_cause": "A duplicate IP address (10.50.1.1) is present on the network. The router's interface GigabitEthernet0/0/0 is configured with this IP, and another device (likely the newly installed PRT-LEGAL-01 printer) is also using the same IP address.",
+  "osi_layer": "Layer 3 (Network)",
+  "confidence": "High",
+  "evidence": "R-CORE# show logging | include Duplicate: '%IP-4-DUPADDR: Duplicate datagram on GigabitEthernet0/0/0, sourced by 0015.fa2b.88c10015.fa2b.88c1'\nR-CORE# show arp | include 10.50.1.1: 'Internet  10.50.1.1               -   0007.EC12.A001  ARPA   GigabitEthernet0/0/0' and 'Internet  10.50.1.1               0   0015.FA2B.88C1  ARPA   GigabitEthernet0/0/0'. Rule CRITICAL_DUPLICATE_IP is DETECTED.",
+  "reason": "The syslog output explicitly reports a duplicate IP address on GigabitEthernet0/0/0, sourced by MAC address 0015.FA2B.88C1. The ARP table confirms that IP 10.50.1.1 is associated with two different MAC addresses: 0007.EC12.A001 (the router's own interface) and 0015.FA2B.88C1 (the conflicting device). This directly explains the intermittent network drops and is corroborated by the CRITICAL_DUPLICATE_IP rule finding. The topology note about a newly installed printer makes it the most likely source of the duplicate IP.",
+  "next_command": null,
+  "fix_steps": "Identify the device with MAC address 0015.FA2B.88C1 (likely PRT-LEGAL-01) and reconfigure its IP address to a unique, available IP within the 10.50.1.0/24 subnet, ensuring it does not conflict with the router's gateway IP (10.50.1.1) or any other assigned IPs.",
+  "verification_command": "show arp | include 10.50.1.1\nshow logging | include Duplicate"
+}
+```
+---
+2026-08-25T04:49:17.741383 - CASE:39
+```json
+{
+  "status": "DIAGNOSED",
+  "root_cause": "The DHCP pool 'CALL_CENTER' for VLAN 40 is exhausted, with all 100 available IP addresses currently leased.",
+  "osi_layer": "Layer 3 (Network)",
+  "confidence": "High",
+  "evidence": "R-CAMPUS# show ip dhcp pool CALL_CENTER output shows 'Total addresses : 100' and 'Leased addresses : 100'. SRV-DHCP-01# show ip dhcp binding output shows '100 total bindings'.",
+  "reason": "The symptom of users receiving 169.254.x.x addresses (APIPA) combined with the DHCP pool status showing all addresses leased on both the router and the DHCP server conclusively indicates DHCP pool exhaustion. No further information is needed to identify the root cause.",
+  "next_command": null,
+  "fix_steps": "On R-CAMPUS, expand the DHCP pool 'CALL_CENTER' to include more IP addresses. For example, to add 50 more addresses (172.20.40.111 to 172.20.40.160):\nconfigure terminal\nip dhcp pool CALL_CENTER\n network 172.20.40.0 255.255.255.0\n default-router 172.20.40.1\n dns-server <DNS_SERVER_IP>\n exit\n\nAlternatively, if the subnet mask is too restrictive, it could be expanded, but this would require re-addressing.\n\nConsider reviewing DHCP lease times to ensure they are appropriate for the environment.",
+  "verification_command": "show ip dhcp pool CALL_CENTER"
+}
+```
+---
+2026-08-25T04:49:30.126435 - CASE:40
+```json
+{
+  "status": "DIAGNOSED",
+  "root_cause": "The Layer 3 gateway subinterface for VLAN 25 on R-BR2 is missing the 'ip helper-address' configuration, preventing DHCP requests from reaching the remote DHCP server.",
+  "osi_layer": "Layer 3 (Network)",
+  "confidence": "High",
+  "evidence": "The output of 'show running-config interface GigabitEthernet0/0/0.25' explicitly shows the configuration for the subinterface, and the 'ip helper-address' command pointing to the DHCP server (10.10.10.5) is absent.",
+  "reason": "For DHCP clients on VLAN 25 (192.168.25.0/24) to obtain IP addresses from a DHCP server located on a different subnet (10.10.10.5), the Layer 3 gateway for VLAN 25 (R-BR2's Gi0/0/0.25 subinterface) must be configured with the 'ip helper-address' command. The provided configuration output confirms this command is not present, which directly explains why clients are failing to acquire IP addresses.",
+  "next_command": null,
+  "fix_steps": "configure terminal\ninterface GigabitEthernet0/0/0.25\nip helper-address 10.10.10.5\nend",
+  "verification_command": "show ip interface GigabitEthernet0/0/0.25"
+}
+```
+---
+2026-08-25T04:49:43.407671 - CASE:41
+{
+  "status": "DIAGNOSED",
+  "root_cause": "A duplicate IP address conflict exists. The static IP address 192.168.1.15, intended for MON-SVR-01, has been dynamically assigned by the DHCP server (R-GW) to another device (a laptop). This occurred because the DHCP excluded range was not configured to include 192.168.1.15.",
+  "osi_layer": "Layer 3 (Network)",
+  "confidence": "High",
+  "evidence": "Symptom: 'Ping to 192.168.1.15 responds, but MAC address lookup reveals a laptop MAC instead of the appliance.'\nCLI Output: 'R-GW# show ip dhcp binding | include 192.168.1.15' shows '192.168.1.15        0100.21ccc.88a1.2b    Nov 14 2026 08:30 AM    Automatic', indicating the DHCP server assigned this IP.\nCLI Output: 'R-GW# show running-config | section dhcp' shows 'ip dhcp excluded-address 192.168.1.1 192.168.1.10'. This exclusion range does not cover 192.168.1.15, allowing DHCP to assign it.",
+  "reason": "The symptom of pinging an IP and getting a response from an unexpected MAC address is a classic indicator of a duplicate IP. The DHCP binding output explicitly shows that R-GW has dynamically assigned 192.168.1.15. The DHCP configuration reveals that 192.168.1.15 falls outside the currently excluded address range (192.168.1.1-192.168.1.10), allowing it to be assigned by DHCP despite being reserved for static use (192.168.1.2-192.168.1.20 per topology note).",
+  "next_command": null,
+  "fix_steps": "clear ip dhcp binding 192.168.1.15\nconfigure terminal\nno ip dhcp excluded-address 192.168.1.1 192.168.1.10\nip dhcp excluded-address 192.168.1.1 192.168.1.20\nend\n(On the laptop that received the duplicate IP, perform an 'ipconfig /release' followed by 'ipconfig /renew' or equivalent to obtain a new IP address.)",
+  "verification_command": "ping 192.168.1.15\nshow ip arp 192.168.1.15"
+}
+---
+2026-08-25T04:49:55.566246 - CASE:42
+```json
+{
+  "status": "DIAGNOSED",
+  "root_cause": "VPN clients are configured to use public DNS servers (8.8.8.8, 8.8.4.4) via the 'RA_VPN_Policy' group policy, which cannot resolve internal domain names like 'portal.corp.local'. The internal DNS server (10.8.0.2) is not being provided to the clients.",
+  "osi_layer": "Layer 7 (Application)",
+  "confidence": "High",
+  "evidence": "ASA-5515# show running-config group-policy RA_VPN_Policy\n group-policy RA_VPN_Policy attributes\n  dns-server value 8.8.8.8 8.8.4.4\nTopology Note: Internal DNS server is 10.8.0.2 (DC-DNS-01), but public DNS 8.8.8.8 cannot resolve internal .local domains.",
+  "reason": "The `show running-config group-policy RA_VPN_Policy` output explicitly shows that VPN clients are being assigned public DNS servers (8.8.8.8, 8.8.4.4). The symptom of failing to resolve internal domain names (e.g., portal.corp.local) while being able to ping internal IP addresses is a direct consequence of this misconfiguration, as public DNS servers cannot resolve private '.local' domains. The topology note confirms that 10.8.0.2 is the internal DNS server that should be used.",
+  "next_command": null,
+  "fix_steps": "configure terminal\n group-policy RA_VPN_Policy attributes\n  dns-server value 10.8.0.2",
+  "verification_command": "show running-config group-policy RA_VPN_Policy"
+}
+```
+---
+2026-08-25T04:50:08.347576 - CASE:43
+```json
+{
+  "status": "DIAGNOSED",
+  "root_cause": "The internal DNS server (10.50.1.10) does not have a DNS A record configured for `media.company.com`.",
+  "osi_layer": "Layer 7 (Application)",
+  "confidence": "High",
+  "evidence": "C:\\> nslookup media.company.com 10.50.1.10\nServer:  dc1-dns.company.com\nAddress:  10.50.1.10\n\n*** dc1-dns.company.com can't find media.company.com: Non-existent domain\n\nC:\\> ping 10.50.100.88\nPinging 10.50.100.88 with 32 bytes of data:\nReply from 10.50.100.88: bytes=32 time=2ms TTL=128",
+  "reason": "The `nslookup` output clearly indicates that the DNS server 10.50.1.10 cannot resolve the hostname `media.company.com`, reporting it as a 'Non-existent domain'. This directly explains why marketing staff cannot load the server by hostname. The successful `ping` to the server's IP address (10.50.100.88) confirms that Layer 1-3 connectivity to the server is functional, isolating the issue to DNS resolution.",
+  "next_command": null,
+  "fix_steps": "Configure an A record on the DNS server `10.50.1.10` for `media.company.com` that points to the IP address `10.50.100.88`.",
+  "verification_command": "nslookup media.company.com 10.50.1.10"
+}
+```
+---
+2026-08-25T04:50:19.341749 - CASE:44
+```json
+{
+  "status": "DIAGNOSED",
+  "root_cause": "Router R-WAN-01 is missing a static route to the 172.16.50.0/24 subnet, which is preventing traffic from HQ warehouse systems from reaching Branch 5.",
+  "osi_layer": "Layer 3 (Network)",
+  "confidence": "High",
+  "evidence": "R-WAN-01# show ip route 172.16.50.0\n% Network not in routing table\nR-WAN-01# show ip route | include 172.16.\nS    172.16.10.0/24 [1/0] via 10.255.1.2\nS    172.16.20.0/24 [1/0] via 10.255.2.2\nS    172.16.30.0/24 [1/0] via 10.255.3.2\nS    172.16.40.0/24 [1/0] via 10.255.4.2",
+  "reason": "The traceroute stopping at R-WAN-01, combined with the explicit 'Network not in routing table' message for 172.16.50.0/24 and its absence from the 'show ip route' output, directly confirms that R-WAN-01 does not know how to forward traffic to Branch 5. The pattern of existing static routes for other 172.16.x.0/24 subnets suggests a specific static route is expected for Branch 5. The topology note indicates Branch 5 is attached via Serial0/1/0 (10.255.5.2/30), which provides the necessary next-hop information for the missing route. While the rule checker detected 'No default route is set', the primary issue for this specific destination is the missing explicit route.",
+  "next_command": null,
+  "fix_steps": "configure terminal\nip route 172.16.50.0 255.255.255.0 10.255.5.2\nend",
+  "verification_command": "show ip route 172.16.50.0"
+}
+```
+---
+2026-08-25T04:50:27.832786 - CASE:45
+```json
+{
+  "status": "DIAGNOSED",
+  "root_cause": "An MTU mismatch is preventing the OSPF adjacency from fully forming between R-DC1 and R-DIST2 on the GigabitEthernet link. R-DC1's GigabitEthernet0/0/0 interface has an MTU of 1500, while its OSPF neighbor (R-DIST2) has an MTU of 1400, and OSPF MTU checking is enabled.",
+  "osi_layer": "Layer 2 (Data Link)",
+  "confidence": "High",
+  "evidence": "R-DC1# show ip ospf neighbor: '192.168.255.2     1   EXSTART/DR'\nR-DC1# show ip ospf interface GigabitEthernet0/0/0 | include MTU: 'Interface MTU 1500, NBR MTU 1400, Protocol MTU check Enabled'\nR-DIST2# show interface GigabitEthernet0/0/1 | include MTU: 'MTU 1400 bytes'",
+  "reason": "The OSPF neighbor on R-DC1 is stuck in the EXSTART state, which is a common symptom of an MTU mismatch. The 'show ip ospf interface' output from R-DC1 explicitly confirms an MTU mismatch (1500 vs. 1400) with the neighbor and that OSPF MTU checking is enabled. The 'show interface' output from R-DIST2 confirms its MTU is 1400. Adjusting R-DC1's interface MTU to match R-DIST2's will resolve this.",
+  "next_command": null,
+  "fix_steps": "interface GigabitEthernet0/0/0\n ip mtu 1400",
+  "verification_command": "show ip ospf neighbor"
+}
+```
+---
+2026-08-25T04:50:41.947691 - CASE:46
+```json
+{
+  "status": "DIAGNOSED",
+  "root_cause": "The static route to the backup cloud datacenter (192.168.200.0/24) is unusable because its next-hop (10.2.2.2) is unreachable. This is due to the directly connected interface GigabitEthernet0/0/1, which provides connectivity to the 10.2.2.0/30 segment, being in a 'down/down' state.",
+  "osi_layer": "Layer 1 (Physical)",
+  "confidence": "High",
+  "evidence": "S    192.168.200.0/24 [1/0] via 10.2.2.2\nGigabitEthernet0/0/1   10.2.2.1        YES NVRAM  down                  down",
+  "reason": "The static route for the destination network 192.168.200.0/24 explicitly uses 10.2.2.2 as its next-hop. The 'show ip interface brief' output clearly shows that the interface GigabitEthernet0/0/1, which is the local interface for the 10.2.2.0/30 subnet, is currently 'down/down'. This directly prevents R-EDGE-01 from reaching the next-hop 10.2.2.2, causing traffic destined for 192.168.200.0/24 to be dropped. The topology note also confirms the ISP-2 link is down. While the rule checker detected no default route, this is not the direct cause for traffic to a specific network that has a static route.",
+  "next_command": null,
+  "fix_steps": "interface GigabitEthernet0/0/1\n no shutdown",
+  "verification_command": "show ip interface brief\nping 192.168.200.1"
+}
+```
+---
+2026-08-25T04:50:51.793145 - CASE:47
+```json
+{
+  "status": "DIAGNOSED",
+  "root_cause": "The access list 'OUTSIDE-IN' is incorrectly applied in the 'out' direction on the internet-facing interface GigabitEthernet0/0/0, preventing inbound HTTP/HTTPS traffic from reaching the web server.",
+  "osi_layer": "Layer 3 (Network)",
+  "confidence": "High",
+  "evidence": "R-EDGE# show running-config interface GigabitEthernet0/0/0\n interface GigabitEthernet0/0/0\n  ip access-group OUTSIDE-IN out\nR-EDGE# show ip access-lists OUTSIDE-IN\n Extended IP access list OUTSIDE-IN\n     10 permit tcp any host 10.10.50.10 eq www\n     20 permit tcp any host 10.10.50.10 eq 443",
+  "reason": "The symptom states that the web server cannot be accessed from the external internet (inbound traffic). The configuration shows that the access list 'OUTSIDE-IN', which permits HTTP/HTTPS to the web server, is applied in the 'out' direction on the internet-facing interface. For inbound traffic from the internet to be filtered and permitted, the access list must be applied in the 'in' direction.",
+  "next_command": null,
+  "fix_steps": "configure terminal\ninterface GigabitEthernet0/0/0\n no ip access-group OUTSIDE-IN out\n ip access-group OUTSIDE-IN in\nend",
+  "verification_command": "show ip interface GigabitEthernet0/0/0"
+}
+```
+---
+2026-08-25T04:51:06.363772 - CASE:48
+```json
+{
+  "status": "DIAGNOSED",
+  "root_cause": "Access List 115 on R-SEC-01 is explicitly denying SSH (port 22) and web traffic (ports 80/443) from 10.30.1.15 to 10.30.99.5 by not having permit statements for these services, causing them to be blocked by the implicit deny rule.",
+  "osi_layer": "Layer 3 (Network) / Layer 4 (Transport)",
+  "confidence": "High",
+  "evidence": "Extended IP access list 115 shows:\n    10 permit tcp host 10.30.1.15 host 10.30.99.5 eq 1433\n    20 permit icmp 10.30.1.0 0.0.0.255 10.30.99.0 0.0.0.255\n    30 implicit deny ip any any (1284 matches)\nThere are no permit rules for TCP port 22 (SSH), TCP port 80 (HTTP), or TCP port 443 (HTTPS). The '1284 matches' on the implicit deny confirms traffic is being blocked.",
+  "reason": "The provided Access List 115 explicitly permits only TCP port 1433 and ICMP traffic between the specified subnets/hosts. SSH (port 22) and web traffic (ports 80/443) are not permitted by any explicit rule and therefore fall through to the implicit deny, which is actively blocking traffic as evidenced by the match count. This directly explains why the workstation can ping but cannot establish SSH or web connections.",
+  "next_command": null,
+  "fix_steps": "configure terminal\naccess-list 115 permit tcp host 10.30.1.15 host 10.30.99.5 eq 22\naccess-list 115 permit tcp host 10.30.1.15 host 10.30.99.5 eq 80\naccess-list 115 permit tcp host 10.30.1.15 host 10.30.99.5 eq 443\nend\nwrite memory",
+  "verification_command": "show ip access-lists 115\nshow access-lists 115 matches"
+}
+```
+---
+2026-08-25T04:56:47.672821 - CASE:1
+```json
+{
+  "status": "DIAGNOSED",
+  "root_cause": "Interface GigabitEthernet0/5, connected to PC-ACCT-04, is incorrectly assigned to VLAN 1 (default) instead of the required VLAN 20 (Accounting).",
+  "osi_layer": "Layer 2 (Data Link)",
+  "confidence": "High",
+  "evidence": "SW-ACCESS-BUILDING2# show interface GigabitEthernet0/5 switchport output shows 'Access Mode VLAN: 1 (default)'. The topology note states 'Accounting devices are required to be on VLAN 20' and 'PC-ACCT-04 in Accounting' is connected to Gi0/5.",
+  "reason": "The PC-ACCT-04, an Accounting device, is connected to an interface (Gi0/5) that is configured for VLAN 1. According to the topology, Accounting devices must be in VLAN 20. This misconfiguration prevents the PC from communicating within its intended VLAN 20 and subsequently from reaching the payroll server on VLAN 10, even if inter-VLAN routing is correctly configured.",
+  "next_command": null,
+  "fix_steps": "interface GigabitEthernet0/5\n switchport mode access\n switchport access vlan 20",
+  "verification_command": "show interface GigabitEthernet0/5 switchport"
+}
+```
+---
+2026-08-25T17:15:59.808686 - CASE:2
+```json
+{
+  "status": "DIAGNOSED",
+  "root_cause": "OSPF adjacency is stuck in EXSTART state due to an MTU mismatch between R-DC1's GigabitEthernet0/0/0 (1500 bytes) and R-DIST2's GigabitEthernet0/0/1 (1400 bytes), with the OSPF MTU check enabled on R-DC1.",
+  "osi_layer": "Layer 2 (Data Link)",
+  "confidence": "High",
+  "evidence": "R-DC1# show ip ospf neighbor output shows neighbor 192.168.255.2 in EXSTART/DR state on GigabitEthernet0/0/0. R-DC1# show ip ospf interface GigabitEthernet0/0/0 | include MTU shows 'Interface MTU 1500, NBR MTU 1400, Protocol MTU check Enabled'. R-DIST2# show interface GigabitEthernet0/0/1 | include MTU shows 'MTU 1400 bytes'.",
+  "reason": "The OSPF neighbor state of EXSTART indicates that the adjacency is not fully formed. The 'Protocol MTU check Enabled' on R-DC1, combined with the explicit 'Interface MTU 1500' on R-DC1 and 'NBR MTU 1400' (from R-DIST2) directly confirms an MTU mismatch. OSPF requires matching MTUs on directly connected interfaces to establish a full adjacency, which is preventing routes from being exchanged.",
+  "next_command": null,
+  "fix_steps": "interface GigabitEthernet0/0/0\n ip mtu 1400",
+  "verification_command": "show ip ospf neighbor"
+}
+```
+---

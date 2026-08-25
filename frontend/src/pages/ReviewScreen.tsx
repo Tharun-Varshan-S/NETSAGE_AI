@@ -101,7 +101,7 @@ export default function ReviewScreen({ caseId, onBack, userRole }: ReviewScreenP
   const submitVerificationMutation = useMutation({
     mutationFn: () => submitCommandOutput(
       caseId, 
-      caseData?.ai_verification_command || editVerificationCommand || 'verification_command', 
+      finalDiag.verification_command || 'verification_command', 
       verificationOutput
     ),
     onSuccess: () => {
@@ -302,32 +302,52 @@ export default function ReviewScreen({ caseId, onBack, userRole }: ReviewScreenP
     setTimeout(() => setCopiedText(null), 2000);
   };
 
-  const handleAcceptReview = () => reviewMutation.mutate({ status: 'Accepted', reason: 'Diagnosis accepted as correct.' });
+  const handleAcceptReview = () => {
+    const payload = {
+      decision: 'Accepted',
+      comment: 'Diagnosis accepted as correct by senior engineer.',
+      original_diagnosis: {
+        root_cause: caseData?.ai_root_cause, osi_layer: caseData?.ai_osi_layer, confidence: caseData?.ai_confidence,
+        evidence: caseData?.ai_evidence, reason: caseData?.ai_reason, fix_steps: caseData?.ai_fix_steps,
+        verification_command: caseData?.ai_verification_command, next_command: caseData?.ai_next_command,
+      }
+    };
+    reviewMutation.mutate({ status: 'Accepted', reason: JSON.stringify(payload) });
+  };
 
   const handleRejectReview = () => {
     if (!rejectReason.trim()) return;
-    reviewMutation.mutate({ status: 'Rejected', reason: rejectReason });
+    const payload = {
+      decision: 'Rejected',
+      comment: rejectReason,
+      original_diagnosis: {
+        root_cause: caseData.ai_root_cause, osi_layer: caseData.ai_osi_layer, confidence: caseData.ai_confidence,
+        evidence: caseData.ai_evidence, reason: caseData.ai_reason, fix_steps: caseData.ai_fix_steps,
+        verification_command: caseData.ai_verification_command, next_command: caseData.ai_next_command,
+      },
+    };
+    reviewMutation.mutate({ status: 'Rejected', reason: JSON.stringify(payload) });
   };
 
   const handleEditReview = () => {
     const payload = {
       decision: 'Edited',
-      human_comment: editReason,
+      comment: editReason,
       original_diagnosis: {
         root_cause: caseData.ai_root_cause, osi_layer: caseData.ai_osi_layer, confidence: caseData.ai_confidence,
-        evidence: caseData.ai_evidence, reason: caseData.ai_reason, fix_steps: caseData.ai_fix_steps, verification_command: caseData.ai_verification_command,
+        evidence: caseData.ai_evidence, reason: caseData.ai_reason, fix_steps: caseData.ai_fix_steps,
+        verification_command: caseData.ai_verification_command, next_command: caseData.ai_next_command,
       },
       edited_diagnosis: {
         root_cause: editRootCause, osi_layer: editOsiLayer, confidence: editConfidence,
         evidence: editEvidence, reason: editReasonText, fix_steps: editFixSteps, verification_command: editVerificationCommand,
       },
     };
-    reviewMutation.mutate({ status: 'Edited', reason: JSON.stringify(payload, null, 2) });
+    reviewMutation.mutate({ status: 'Edited', reason: JSON.stringify(payload) });
   };
 
   const hasDiagnoseRun = !!caseData.ai_root_cause;
   const isReviewed = !!caseData.review;
-  const isAcceptedOrEdited = caseData.review?.status === 'Accepted' || caseData.review?.status === 'Edited';
 
   const timelineSteps = [
     { label: 'Problem reported', detail: 'Symptoms parsed and topology loaded', done: true },
@@ -338,7 +358,32 @@ export default function ReviewScreen({ caseId, onBack, userRole }: ReviewScreenP
     { label: 'Verification', detail: caseData.diagnosis_status === 'RESOLVED' ? 'Resolved' : 'Pending', done: caseData.diagnosis_status === 'RESOLVED' || caseData.diagnosis_status === 'NOT_RESOLVED' },
   ];
 
-  const confPercent = caseData.ai_confidence === 'High' ? 92 : caseData.ai_confidence === 'Medium' ? 68 : 35;
+  const confPercent = caseData?.ai_confidence === 'High' ? 92 : caseData?.ai_confidence === 'Medium' ? 68 : 35;
+
+  const getFinalDiagnosis = () => {
+    if (caseData?.review?.status === 'Edited' && caseData.review.reason) {
+      try {
+        const parsed = JSON.parse(caseData.review.reason);
+        if (parsed.edited_diagnosis) {
+          return { ...caseData, ...parsed.edited_diagnosis };
+        }
+      } catch (e) {
+        // fallback
+      }
+    }
+    return {
+      root_cause: caseData?.ai_root_cause,
+      osi_layer: caseData?.ai_osi_layer,
+      confidence: caseData?.ai_confidence,
+      evidence: caseData?.ai_evidence,
+      reason: caseData?.ai_reason,
+      fix_steps: caseData?.ai_fix_steps,
+      verification_command: caseData?.ai_verification_command,
+      next_command: caseData?.ai_next_command,
+    };
+  };
+
+  const finalDiag = getFinalDiagnosis();
 
   // Helper for terminal blocks
   const TerminalBlock = ({ title, blocks, fallback }: { title: string; blocks: { command: string; output: string }[]; fallback: string }) => (
@@ -388,8 +433,11 @@ export default function ReviewScreen({ caseId, onBack, userRole }: ReviewScreenP
         <span className={`badge ${
           caseData.diagnosis_status === 'NEEDS_INFO' ? 'badge-warning' : 
           caseData.diagnosis_status === 'DIAGNOSED' ? 'badge-info' :
+          caseData.diagnosis_status === 'PENDING_REVIEW' ? 'badge-info' :
+          caseData.diagnosis_status === 'VERIFICATION_REQUIRED' ? 'badge-warning' :
           caseData.diagnosis_status === 'RESOLVED' ? 'badge-success' :
-          caseData.diagnosis_status === 'NOT_RESOLVED' ? 'badge-danger' : 'badge-neutral'
+          caseData.diagnosis_status === 'NOT_RESOLVED' ? 'badge-danger' :
+          caseData.diagnosis_status === 'REJECTED' ? 'badge-danger' : 'badge-neutral'
         }`}>{caseData.diagnosis_status || 'NEW'}</span>
       </div>
 
@@ -655,14 +703,63 @@ export default function ReviewScreen({ caseId, onBack, userRole }: ReviewScreenP
           <div className="card">
             <div className="card-header bg-[var(--bg-secondary)]/50">
               <h3 className="card-title flex items-center gap-2">
-                <Check size={15} className="text-[var(--accent)]" /> Human Review
+                <Check size={15} className="text-[var(--accent)]" /> Senior Human Review
               </h3>
             </div>
             <div className="card-body space-y-5">
               
-              <div className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-default)]">
-                <label className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide block mb-1.5">AI Diagnosis</label>
-                <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">{caseData.ai_root_cause}</p>
+              {/* Full AI Diagnosis Summary for Senior */}
+              <div className="space-y-3">
+                <div className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-default)]">
+                  <label className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide block mb-1.5">AI Root Cause</label>
+                  <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">{caseData.ai_root_cause || '—'}</p>
+                </div>
+
+                {caseData.ai_evidence && (
+                  <div className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-default)]">
+                    <label className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide block mb-1.5">Evidence</label>
+                    <p className="text-[13px] text-[var(--text-tertiary)] leading-relaxed break-words">{caseData.ai_evidence}</p>
+                  </div>
+                )}
+
+                {caseData.ai_reason && (
+                  <div className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-default)]">
+                    <label className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide block mb-1.5">Reasoning</label>
+                    <p className="text-[13px] text-[var(--text-tertiary)] leading-relaxed break-words">{caseData.ai_reason}</p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-default)]">
+                    <label className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block mb-1">OSI Layer</label>
+                    <span className="text-[var(--accent)] font-semibold text-[13px]">{caseData.ai_osi_layer || '—'}</span>
+                  </div>
+                  <div className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-default)]">
+                    <label className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider block mb-1">Confidence</label>
+                    <span className="text-[var(--text-secondary)] font-semibold text-[13px]">{caseData.ai_confidence || '—'}</span>
+                  </div>
+                </div>
+
+                {caseData.ai_next_command && (
+                  <div className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-default)]">
+                    <label className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide block mb-1.5">Next Command</label>
+                    <code className="text-green-400 text-[12px] font-mono">{caseData.ai_next_command}</code>
+                  </div>
+                )}
+
+                {caseData.ai_fix_steps && (
+                  <div className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-default)]">
+                    <label className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide block mb-1.5">Fix Steps</label>
+                    <pre className="text-[12px] text-[var(--text-tertiary)] leading-relaxed whitespace-pre-wrap break-words font-mono">{caseData.ai_fix_steps}</pre>
+                  </div>
+                )}
+
+                {caseData.ai_verification_command && (
+                  <div className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-default)]">
+                    <label className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide block mb-1.5">Verification Command</label>
+                    <code className="text-green-400 text-[12px] font-mono">{caseData.ai_verification_command}</code>
+                  </div>
+                )}
               </div>
 
               {reviewMode === 'none' && (
@@ -676,11 +773,11 @@ export default function ReviewScreen({ caseId, onBack, userRole }: ReviewScreenP
               {reviewMode === 'accept' && (
                 <div className="p-4 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-default)] space-y-3 max-w-lg">
                   <p className="text-[13px] font-medium text-[var(--text-secondary)]">Confirm the AI diagnosis is correct?</p>
-                  <p className="text-[12px] text-[var(--text-tertiary)]">This moves the case to the fix and verification stage.</p>
+                  <p className="text-[12px] text-[var(--text-tertiary)]">This accepts the AI diagnosis and moves the case to the fix and verification stage.</p>
                   <div className="flex gap-2 justify-end">
                     <button onClick={() => setReviewMode('none')} className="btn btn-secondary">Cancel</button>
                     <button onClick={handleAcceptReview} disabled={reviewMutation.isPending} className="btn btn-success">
-                      {reviewMutation.isPending && <Loader2 size={14} className="animate-spin" />} Confirm
+                      {reviewMutation.isPending && <Loader2 size={14} className="animate-spin" />} Confirm Accept
                     </button>
                   </div>
                 </div>
@@ -691,13 +788,13 @@ export default function ReviewScreen({ caseId, onBack, userRole }: ReviewScreenP
                   <p className="text-[13px] font-medium text-[var(--danger)]">Provide a rejection reason:</p>
                   <textarea 
                     className="textarea-field" rows={3}
-                    placeholder="Why is this diagnosis incorrect?" 
+                    placeholder="Why is this diagnosis incorrect? What did the AI get wrong?" 
                     value={rejectReason} onChange={e => setRejectReason(e.target.value)}
                   />
                   <div className="flex gap-2 justify-end">
                     <button onClick={() => setReviewMode('none')} className="btn btn-secondary">Cancel</button>
                     <button onClick={handleRejectReview} disabled={reviewMutation.isPending || !rejectReason.trim()} className="btn btn-danger disabled:opacity-50">
-                      {reviewMutation.isPending && <Loader2 size={14} className="animate-spin" />} Reject
+                      {reviewMutation.isPending && <Loader2 size={14} className="animate-spin" />} Reject Diagnosis
                     </button>
                   </div>
                 </div>
@@ -706,6 +803,7 @@ export default function ReviewScreen({ caseId, onBack, userRole }: ReviewScreenP
               {reviewMode === 'edit' && (
                 <div className="p-5 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-default)] space-y-4">
                   <h4 className="text-[14px] font-semibold text-[var(--text-secondary)]">Edit Diagnosis</h4>
+                  <p className="text-[12px] text-[var(--text-tertiary)]">Modify the AI diagnosis below. The original AI output will be preserved for auditing.</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="input-label">Root Cause</label>
@@ -741,7 +839,7 @@ export default function ReviewScreen({ caseId, onBack, userRole }: ReviewScreenP
                     </div>
                     <div>
                       <label className="input-label text-[var(--warning)]">Override Reason *</label>
-                      <input type="text" className="input-field border-[var(--warning)]/50 focus:border-[var(--warning)] focus:ring-[var(--warning)]" placeholder="Why are you overriding?" value={editReason} onChange={e => setEditReason(e.target.value)} />
+                      <input type="text" className="input-field border-[var(--warning)]/50 focus:border-[var(--warning)] focus:ring-[var(--warning)]" placeholder="Why are you overriding the AI?" value={editReason} onChange={e => setEditReason(e.target.value)} />
                     </div>
                   </div>
                   <div className="flex gap-2 justify-end pt-3 border-t border-[var(--border-subtle)]">
@@ -758,38 +856,72 @@ export default function ReviewScreen({ caseId, onBack, userRole }: ReviewScreenP
 
         {/* Review Status */}
         {isReviewed && (
-          <div className={`card p-4 flex items-start gap-3 ${
+          <div className={`card p-5 ${
             caseData.review?.status === 'Accepted' ? 'border-[var(--success)]/20 bg-[var(--success)]/5' :
             caseData.review?.status === 'Edited' ? 'border-[var(--warning)]/20 bg-[var(--warning)]/5' :
             'border-[var(--danger)]/20 bg-[var(--danger)]/5'
           }`}>
-            <CheckCircle2 size={18} className={
-              caseData.review?.status === 'Accepted' ? 'text-[var(--success)]' :
-              caseData.review?.status === 'Edited' ? 'text-[var(--warning)]' : 'text-[var(--danger)]'
-            } />
-            <div>
-              <p className="font-semibold text-[13px] text-[var(--text-primary)]">
-                Review Decision: <span className={
-                  caseData.review?.status === 'Accepted' ? 'text-[var(--success)]' :
-                  caseData.review?.status === 'Edited' ? 'text-[var(--warning)]' : 'text-[var(--danger)]'
-                }>{caseData.review?.status}</span>
-              </p>
-              {caseData.review?.reason && (
-                <div className="mt-1.5 text-[12px] text-[var(--text-tertiary)] leading-relaxed">
-                  {caseData.review.reason.startsWith('{') ? (() => {
-                    try {
-                      const p = JSON.parse(caseData.review.reason);
-                      return <><strong>Comment:</strong> {p.human_comment || 'None'}{p.edited_diagnosis && <><br /><strong>Edited root cause:</strong> {p.edited_diagnosis.root_cause}</>}</>;
-                    } catch { return caseData.review.reason; }
-                  })() : caseData.review.reason}
-                </div>
+            <div className="flex items-start gap-3">
+              {caseData.review?.status === 'Rejected' ? (
+                <XCircle size={18} className="text-[var(--danger)] shrink-0 mt-0.5" />
+              ) : (
+                <CheckCircle2 size={18} className={
+                  `shrink-0 mt-0.5 ${caseData.review?.status === 'Accepted' ? 'text-[var(--success)]' : 'text-[var(--warning)]'}`
+                } />
               )}
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-[14px] text-[var(--text-primary)]">
+                  Review Decision: <span className={
+                    caseData.review?.status === 'Accepted' ? 'text-[var(--success)]' :
+                    caseData.review?.status === 'Edited' ? 'text-[var(--warning)]' : 'text-[var(--danger)]'
+                  }>{caseData.review?.status}</span>
+                </p>
+                {caseData.review?.reason && (
+                  <div className="mt-2 text-[12px] text-[var(--text-tertiary)] leading-relaxed space-y-2">
+                    {caseData.review.reason.startsWith('{') ? (() => {
+                      try {
+                        const p = JSON.parse(caseData.review!.reason!);
+                        return (
+                          <div className="space-y-3">
+                            {p.comment && (
+                              <div>
+                                <strong className="text-[var(--text-secondary)]">Senior Comment:</strong>
+                                <p className="mt-0.5">{p.comment}</p>
+                              </div>
+                            )}
+                            {p.original_diagnosis && (
+                              <div className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-default)]">
+                                <label className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider block mb-1.5">Original AI Diagnosis (Preserved)</label>
+                                <p className="text-[12px] text-[var(--text-tertiary)]">
+                                  <strong>Root Cause:</strong> {p.original_diagnosis.root_cause || '—'}<br />
+                                  <strong>OSI Layer:</strong> {p.original_diagnosis.osi_layer || '—'} · <strong>Confidence:</strong> {p.original_diagnosis.confidence || '—'}
+                                </p>
+                              </div>
+                            )}
+                            {p.edited_diagnosis && (
+                              <div className="p-3 bg-[var(--warning)]/10 rounded-lg border border-[var(--warning)]/20">
+                                <label className="text-[10px] font-semibold text-[var(--warning)] uppercase tracking-wider block mb-1.5">Senior's Edited Diagnosis</label>
+                                <p className="text-[12px] text-[var(--text-secondary)]">
+                                  <strong>Root Cause:</strong> {p.edited_diagnosis.root_cause || '—'}<br />
+                                  <strong>OSI Layer:</strong> {p.edited_diagnosis.osi_layer || '—'} · <strong>Confidence:</strong> {p.edited_diagnosis.confidence || '—'}<br />
+                                  {p.edited_diagnosis.fix_steps && <><strong>Fix Steps:</strong> {p.edited_diagnosis.fix_steps}<br /></>}
+                                  {p.edited_diagnosis.verification_command && <><strong>Verification:</strong> <code className="font-mono text-green-400">{p.edited_diagnosis.verification_command}</code></>}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      } catch { return caseData.review!.reason; }
+                    })() : caseData.review.reason}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
 
         {/* Fix Steps */}
-        {isAcceptedOrEdited && !inVerificationMode && (
+        {isReviewed && (caseData.review?.status === 'Accepted' || caseData.review?.status === 'Edited') && !inVerificationMode && (
           <div className="card">
             <div className="card-header bg-transparent border-none">
               <h3 className="card-title flex items-center gap-2">
@@ -805,15 +937,15 @@ export default function ReviewScreen({ caseId, onBack, userRole }: ReviewScreenP
               <div>
                 <label className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide block mb-1.5">Fix Commands</label>
                 <pre className="terminal-block whitespace-pre-wrap break-all">
-                  {caseData.ai_fix_steps || 'No automated fix commands were identified.'}
+                  {finalDiag.fix_steps || 'No automated fix commands were identified.'}
                 </pre>
               </div>
 
-              {caseData.ai_verification_command && (
+              {finalDiag.verification_command && (
                 <div>
                   <label className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide block mb-1.5">Verification Command</label>
                   <code className="terminal-block py-2 block text-green-400">
-                    {caseData.ai_verification_command}
+                    {finalDiag.verification_command}
                   </code>
                 </div>
               )}
@@ -839,10 +971,10 @@ export default function ReviewScreen({ caseId, onBack, userRole }: ReviewScreenP
                 <label className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide block mb-1.5">Run This Command</label>
                 <div className="flex items-center justify-between p-2.5 terminal-block">
                   <code className="text-green-400 select-all">
-                    {caseData.ai_verification_command || editVerificationCommand || 'show ip interface brief'}
+                    {finalDiag.verification_command || 'show ip interface brief'}
                   </code>
-                  <button onClick={() => handleCopy(caseData.ai_verification_command || editVerificationCommand || '')} className="btn btn-secondary text-[11px] py-1 px-2 h-auto">
-                    <Copy size={13} /> {copiedText === (caseData.ai_verification_command || editVerificationCommand) ? 'Copied!' : 'Copy'}
+                  <button onClick={() => handleCopy(finalDiag.verification_command || '')} className="btn btn-secondary text-[11px] py-1 px-2 h-auto">
+                    <Copy size={13} /> {copiedText === (finalDiag.verification_command) ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
               </div>

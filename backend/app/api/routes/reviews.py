@@ -26,11 +26,17 @@ def create_review(case_id: int, review: ReviewCreate, db: Session = Depends(get_
     else:
         db_review = Review(case_id=case_id, status=review.status, reason=review.reason, reviewer_id=current_user.id)
         db.add(db_review)
-        
+    
+    # Update case status based on review decision.
+    # IMPORTANT: The original AI diagnosis fields (ai_root_cause, ai_osi_layer, etc.)
+    # on the Case model are NEVER modified here. They remain as a permanent
+    # record of the AI's output for Responsible AI auditing.
     if review.status == "Accepted":
-        case.diagnosis_status = "RESOLVED"
+        case.diagnosis_status = "VERIFICATION_REQUIRED"
+    elif review.status == "Edited":
+        case.diagnosis_status = "VERIFICATION_REQUIRED"
     elif review.status == "Rejected":
-        case.diagnosis_status = "NEEDS_INFO"
+        case.diagnosis_status = "REJECTED"
         
     db.commit()
     db.refresh(db_review)

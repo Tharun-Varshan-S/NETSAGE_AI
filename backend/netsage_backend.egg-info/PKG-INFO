@@ -1,0 +1,19 @@
+Metadata-Version: 2.4
+Name: netsage-backend
+Version: 0.1.0
+Summary: Backend for NetSage AI
+Requires-Python: >=3.10
+Requires-Dist: fastapi
+Requires-Dist: uvicorn
+Requires-Dist: sqlalchemy
+Requires-Dist: pydantic
+Requires-Dist: pydantic-settings
+Requires-Dist: google-genai
+Requires-Dist: requests
+Requires-Dist: pytest
+Requires-Dist: pytest-cov
+Requires-Dist: ruff
+Requires-Dist: mypy
+Requires-Dist: bcrypt
+Requires-Dist: PyJWT
+Requires-Dist: python-multipart

@@ -34,7 +34,7 @@ export interface Case {
     ai_verification_command?: string;
     
     // Stateful fields
-    diagnosis_status?: 'NEEDS_INFO' | 'DIAGNOSED' | 'PENDING_REVIEW' | 'VERIFICATION_REQUIRED' | 'RESOLVED' | 'NOT_RESOLVED';
+    diagnosis_status?: 'NEEDS_INFO' | 'DIAGNOSED' | 'PENDING_REVIEW' | 'VERIFICATION_REQUIRED' | 'RESOLVED' | 'NOT_RESOLVED' | 'REJECTED';
     
     // Optional review from relationships
     review?: Review;

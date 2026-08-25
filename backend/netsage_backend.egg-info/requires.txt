@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+pydantic-settings
+google-genai
+requests
+pytest
+pytest-cov
+ruff
+mypy
+bcrypt
+PyJWT
+python-multipart

@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
@@ -18,7 +18,7 @@ class Review(Base):
     # Reason for editing or rejecting
     reason = Column(Text, nullable=True)
     
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     # RBAC field
     reviewer_id = Column(Integer, ForeignKey("users.id"), nullable=True) # nullable for backwards compat

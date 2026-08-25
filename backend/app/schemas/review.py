@@ -1,10 +1,11 @@
-from pydantic import BaseModel
-from typing import Optional
 from datetime import datetime
+
+from pydantic import BaseModel
+
 
 class ReviewCreate(BaseModel):
     status: str  # 'Accepted', 'Edited', 'Rejected'
-    reason: Optional[str] = None
+    reason: str | None = None
 
 class ReviewResponse(ReviewCreate):
     id: int

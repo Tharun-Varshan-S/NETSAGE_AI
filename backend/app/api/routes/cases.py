@@ -1,15 +1,18 @@
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+
+from app.api.deps import get_current_user
 from app.database import get_db
 from app.models.case import Case
-from app.schemas.case import CaseResponse, CaseCreate
-from typing import List
-import uuid
+from app.models.user import User
+from app.schemas.case import CaseCreate, CaseResponse
 
 router = APIRouter()
 
 @router.post("/", response_model=CaseResponse)
-def create_case(case_in: CaseCreate, db: Session = Depends(get_db)):
+def create_case(case_in: CaseCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     # Generate a unique case ID like DYN-1234
     short_uuid = str(uuid.uuid4())[:8].upper()
     new_case_id = f"DYN-{short_uuid}"
@@ -29,7 +32,8 @@ def create_case(case_in: CaseCreate, db: Session = Depends(get_db)):
         expected_next_command=case_in.expected_next_command,
         expected_fix=case_in.expected_fix,
         verification_command=case_in.verification_command,
-        diagnosis_status="NEEDS_INFO"
+        diagnosis_status="NEEDS_INFO",
+        created_by_id=current_user.id
     )
     
     db.add(new_case)
@@ -37,9 +41,13 @@ def create_case(case_in: CaseCreate, db: Session = Depends(get_db)):
     db.refresh(new_case)
     return new_case
 
-@router.get("/", response_model=List[CaseResponse])
-def get_cases(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    cases = db.query(Case).order_by(Case.id.desc()).offset(skip).limit(limit).all()
+@router.get("/", response_model=list[CaseResponse])
+def get_cases(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    query = db.query(Case)
+    if current_user.role == "junior":
+        query = query.filter(Case.created_by_id == current_user.id)
+    # Seniors see everything
+    cases = query.order_by(Case.id.desc()).offset(skip).limit(limit).all()
     return cases
 
 @router.get("/{case_id}", response_model=CaseResponse)

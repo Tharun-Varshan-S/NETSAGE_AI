@@ -1,17 +1,19 @@
-import time
 import json
 import os
+import time
 from datetime import datetime
+from typing import Any
+
 from google import genai
 from google.genai import types
 from pydantic import ValidationError
-from typing import Optional, Dict, Any, List
 
 from app.config import settings
 from app.models.case import Case
 from app.schemas.diagnosis import Diagnosis
 
-def generate_diagnosis_prompt(case: Case, evidence: Dict[str, Any], rule_findings: List[Dict[str, Any]]) -> str:
+
+def generate_diagnosis_prompt(case: Case, evidence: dict[str, Any], rule_findings: list[dict[str, Any]]) -> str:
     """Generates the prompt string for the LLM."""
     with open("app/prompts/diagnose_prompt.md", "r", encoding="utf-8") as f:
         prompt_template = f.read()
@@ -47,7 +49,7 @@ def generate_diagnosis_prompt(case: Case, evidence: Dict[str, Any], rule_finding
     )
     return content
 
-def run_diagnosis(case: Case, evidence: Dict[str, Any], rule_findings: List[Dict[str, Any]], max_retries: int = 3) -> Optional[Diagnosis]:
+def run_diagnosis(case: Case, evidence: dict[str, Any], rule_findings: list[dict[str, Any]], max_retries: int = 3) -> Diagnosis | None:
     """
     Calls Gemini API to diagnose the case.
     """

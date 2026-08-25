@@ -5,8 +5,8 @@ backend_dir = Path(__file__).resolve().parent.parent
 sys.path.append(str(backend_dir))
 
 from app.database import SessionLocal
-from app.models.case import Case
 from app.models.review import Review
+
 
 def generate_log():
     db = SessionLocal()

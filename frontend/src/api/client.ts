@@ -2,6 +2,14 @@ import type { Case, DiagnosisResponse, DashboardStats, Review } from '../types/c
 
 const API_BASE = 'http://localhost:8000/api';
 
+const getAuthHeaders = (extraHeaders: Record<string, string> = {}) => {
+    const token = localStorage.getItem('token');
+    return {
+        ...extraHeaders,
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+    };
+};
+
 const handleResponse = async (res: Response) => {
     if (!res.ok) {
         let errorDetail = '';
@@ -16,9 +24,26 @@ const handleResponse = async (res: Response) => {
     return res.json();
 };
 
+export const login = async (username: string, password: string) => {
+    const formData = new URLSearchParams();
+    formData.append('username', username);
+    formData.append('password', password);
+
+    const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData,
+    });
+    return handleResponse(res);
+};
+
 export const fetchCases = async (): Promise<Case[]> => {
     try {
-        const res = await fetch(`${API_BASE}/cases/`);
+        const res = await fetch(`${API_BASE}/cases/`, {
+            headers: getAuthHeaders()
+        });
         return await handleResponse(res);
     } catch (err: any) {
         throw new Error(err.message || 'Backend is unavailable. Please verify the backend server is running.');
@@ -33,10 +58,10 @@ export const createCase = async (
     try {
         const res = await fetch(`${API_BASE}/cases/`, {
             method: 'POST',
-            headers: { 
+            headers: getAuthHeaders({
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
-            },
+            }),
             body: JSON.stringify({ symptom, topology_note, show_outputs })
         });
         return await handleResponse(res);
@@ -47,7 +72,9 @@ export const createCase = async (
 
 export const fetchCase = async (id: number): Promise<Case> => {
     try {
-        const res = await fetch(`${API_BASE}/cases/${id}`);
+        const res = await fetch(`${API_BASE}/cases/${id}`, {
+            headers: getAuthHeaders()
+        });
         return await handleResponse(res);
     } catch (err: any) {
         throw new Error(err.message || 'Backend is unavailable.');
@@ -58,7 +85,7 @@ export const diagnoseCase = async (id: number): Promise<DiagnosisResponse> => {
     try {
         const res = await fetch(`${API_BASE}/diagnose/${id}`, { 
             method: 'POST',
-            headers: { 'Accept': 'application/json' }
+            headers: getAuthHeaders({ 'Accept': 'application/json' })
         });
         return await handleResponse(res);
     } catch (err: any) {
@@ -74,10 +101,10 @@ export const submitCommandOutput = async (
     try {
         const res = await fetch(`${API_BASE}/diagnose/${id}/command-output`, {
             method: 'POST',
-            headers: { 
+            headers: getAuthHeaders({
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
-            },
+            }),
             body: JSON.stringify({ command_executed, output })
         });
         return await handleResponse(res);
@@ -94,10 +121,10 @@ export const submitReview = async (
     try {
         const res = await fetch(`${API_BASE}/reviews/${id}`, {
             method: 'POST',
-            headers: { 
+            headers: getAuthHeaders({
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
-            },
+            }),
             body: JSON.stringify({ status, reason })
         });
         return await handleResponse(res);
@@ -108,7 +135,9 @@ export const submitReview = async (
 
 export const fetchDashboardStats = async (): Promise<DashboardStats> => {
     try {
-        const res = await fetch(`${API_BASE}/dashboard/`);
+        const res = await fetch(`${API_BASE}/dashboard/`, {
+            headers: getAuthHeaders()
+        });
         return await handleResponse(res);
     } catch (err: any) {
         throw new Error(err.message || 'Failed to load dashboard statistics.');

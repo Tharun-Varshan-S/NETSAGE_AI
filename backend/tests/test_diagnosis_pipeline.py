@@ -1,12 +1,44 @@
-import pytest
-from unittest.mock import patch, MagicMock
-from app.models.case import Case
-from app.schemas.diagnosis import Diagnosis, DiagnosisStatus
-from app.services.rule_orchestrator import RuleOrchestrator
-from app.services.aggregator import DiagnosisAggregator
-from fastapi.testclient import TestClient
-from app.main import app
+from unittest.mock import patch
 
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from app.api.deps import get_current_user
+from app.database import Base, get_db
+from app.main import app
+from app.models.case import Case
+from app.models.user import User
+from app.schemas.diagnosis import Diagnosis, DiagnosisStatus
+from app.services.aggregator import DiagnosisAggregator
+from app.services.rule_orchestrator import RuleOrchestrator
+
+engine = create_engine("sqlite:///./test.db", connect_args={"check_same_thread": False})
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+@pytest.fixture(scope="function")
+def db_session():
+    Base.metadata.create_all(bind=engine)
+    db = TestingSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+        Base.metadata.drop_all(bind=engine)
+
+def override_get_db():
+    try:
+        db = TestingSessionLocal()
+        yield db
+    finally:
+        db.close()
+
+def override_get_current_user():
+    return User(id=1, username="testuser", role="senior")
+
+app.dependency_overrides[get_db] = override_get_db
+app.dependency_overrides[get_current_user] = override_get_current_user
 client = TestClient(app)
 
 # --- TEST 1: Rule Checker ---
@@ -26,7 +58,7 @@ def test_rule_checker():
     interface_finding = next((f for f in findings if f["rule"] == "INTERFACE_DOWN"), None)
     assert interface_finding is not None
     assert interface_finding["status"] == "DETECTED"
-    assert "GigabitEthernet0/1 is administratively down" in interface_finding["reason"]
+    assert "GigabitEthernet0/1 is administratively down" in interface_finding["evidence"][0]
 
 
 # --- TEST 2: Diagnosis Orchestration (Mock Gemini) ---

@@ -1,9 +1,11 @@
-from typing import List, Dict, Any
-from app.schemas.diagnosis import Diagnosis, DiagnosisStatus
+from typing import Any
+
+from app.schemas.diagnosis import Diagnosis
+
 
 class DiagnosisAggregator:
     @staticmethod
-    def aggregate(ai_diagnosis: Diagnosis, rule_findings: List[Dict[str, Any]]) -> Diagnosis:
+    def aggregate(ai_diagnosis: Diagnosis, rule_findings: list[dict[str, Any]]) -> Diagnosis:
         """
         Combines deterministic rule findings and AI diagnosis.
         Enforces constraints where deterministic evidence overrides unsupported AI claims.

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { createCase } from '../api/client';
 import { Terminal, Network, AlertCircle, Loader2, ArrowRight } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface DataIngestionProps {
   onCaseCreated: (id: number, caseIdStr: string) => void;
@@ -11,23 +12,22 @@ export default function DataIngestion({ onCaseCreated }: DataIngestionProps) {
   const [topology, setTopology] = useState('');
   const [outputs, setOutputs] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!symptom.trim() || !outputs.trim()) {
-      setError('Symptoms and CLI Outputs are required.');
+      toast.error('Symptoms and CLI Outputs are required.');
       return;
     }
     
     setIsSubmitting(true);
-    setError(null);
 
     try {
       const newCase = await createCase(symptom, topology, outputs);
+      toast.success('Case created successfully!');
       onCaseCreated(newCase.id, newCase.case_id);
     } catch (err: any) {
-      setError(err.message || 'Failed to ingest data. Please try again.');
+      toast.error(err.message || 'Failed to ingest data. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -44,12 +44,6 @@ export default function DataIngestion({ onCaseCreated }: DataIngestionProps) {
 
       <div className="card">
         <form onSubmit={handleSubmit} className="card-body space-y-5">
-          {error && (
-            <div className="p-3 rounded-lg bg-[var(--danger)]/10 border border-[var(--danger)]/20 flex items-start gap-2">
-              <AlertCircle className="text-[var(--danger)] shrink-0 mt-0.5" size={16} />
-              <p className="text-[var(--danger)] text-[13px]">{error}</p>
-            </div>
-          )}
 
           <div className="space-y-1.5">
             <label className="input-label flex items-center gap-2">

@@ -20,10 +20,15 @@ If you prefer to run the components separately:
 ```bash
 cd backend
 python3 -m venv venv
+# On Windows use: .\venv\Scripts\activate
 source venv/bin/activate
 pip install .
 
-# Seed the database (only needed once)
+# Create a .env file and add your GEMINI_API_KEY and SECRET_KEY
+echo 'GEMINI_API_KEY="your-api-key"' > .env
+echo 'SECRET_KEY="super-secret-key-change-me"' >> .env
+
+# Seed the database (creates users and assigns cases)
 python3 scripts/seed_database.py
 
 # Start the API server
@@ -37,6 +42,11 @@ cd frontend
 npm install
 npm run dev
 ```
+
+## Demo Accounts (RBAC)
+When logging into the frontend, you can use the automatically seeded demo accounts:
+- **Junior Developer:** `junior` / `password` (Only sees their own cases)
+- **Senior Developer:** `senior` / `password` (Sees all cases, handles reviews)
 
 ## Manual Testing Workflow
 

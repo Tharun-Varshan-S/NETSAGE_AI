@@ -2,7 +2,7 @@ import { useState } from 'react';
 import DataIngestion from './pages/DataIngestion';
 import Dashboard from './pages/Dashboard';
 import ReviewScreen from './pages/ReviewScreen';
-import Cases from './pages/Cases';
+import CaseQueue from './pages/CaseQueue';
 import HumanReviews from './pages/HumanReviews';
 import Evaluation from './pages/Evaluation';
 import Login from './pages/Login';
@@ -229,7 +229,7 @@ export default function App() {
               )
             )}
 
-            {currentPage === 'cases' && <Cases />}
+            {currentPage === 'cases' && <CaseQueue onSelectCase={navigateToDiagnoseCase} />}
             {currentPage === 'reviews' && <HumanReviews />}
             {currentPage === 'evaluation' && <Evaluation />}
             {currentPage === 'diagnostics' && <div className="text-[var(--text-muted)]">Network Diagnostics Tools...</div>}

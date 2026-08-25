@@ -7,9 +7,11 @@ from pydantic import BaseModel, Field
 class DiagnosisStatus(str, Enum):
     NEEDS_INFO = "NEEDS_INFO"
     DIAGNOSED = "DIAGNOSED"
+    PENDING_REVIEW = "PENDING_REVIEW"
     VERIFICATION_REQUIRED = "VERIFICATION_REQUIRED"
     RESOLVED = "RESOLVED"
     NOT_RESOLVED = "NOT_RESOLVED"
+    REJECTED = "REJECTED"
 
 class Diagnosis(BaseModel):
     status: DiagnosisStatus = Field(description="The current state of the troubleshooting session")

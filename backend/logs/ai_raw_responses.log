@@ -82,3 +82,133 @@
   "verification_command": "show ip interface brief"
 }
 ---
+2026-08-25T13:25:46.071456 - CASE:36
+{
+  "status": "DIAGNOSED",
+  "root_cause": "The default gateway configured on Finance PCs (192.168.20.254) does not match the IP address of router R1's GigabitEthernet0/0 interface (192.168.20.1).",
+  "osi_layer": "Layer 3 (Network)",
+  "confidence": "High",
+  "evidence": "PC-FINANCE ipconfig shows 'Default Gateway......... 192.168.20.254', while R1 show ip interface brief shows 'GigabitEthernet0/0 192.168.20.1 up up'.",
+  "reason": "Finance hosts can communicate locally within 192.168.20.0/24 because local Layer 2 delivery does not require a default gateway. However, inter-subnet traffic sent to non-local networks fails because PCs forward packets to 192.168.20.254, which is not configured on router R1.",
+  "next_command": null,
+  "fix_steps": "interface GigabitEthernet0/0\n ip address 192.168.20.254 255.255.255.0\n no shutdown",
+  "verification_command": "show ip interface brief"
+}
+---
+2026-08-25T13:29:30.751598 - CASE:37
+{
+  "status": "DIAGNOSED",
+  "root_cause": "VLAN 20 (HR) is missing from the VLAN database on switch SW-HR, preventing VLAN 20 traffic from being processed and forwarded over trunk interface Fa0/24.",
+  "osi_layer": "Layer 2 (Data Link Layer)",
+  "confidence": "High",
+  "evidence": "SW-HR# show vlan brief lists active VLANs 1, 10, 30, 40, 100, but VLAN 20 is missing. SW-HR# show interfaces trunk lists 'Vlans allowed and active' on Fa0/24 as '1,10,30,40,100', showing VLAN 20 is inactive on the trunk.",
+  "reason": "VLAN 20 is not configured in the local VLAN database of SW-HR. Consequently, even though trunk Fa0/24 allows VLANs 1-100, VLAN 20 cannot be active on the trunk, preventing communication between HR users and the HR application server on VLAN 20.",
+  "next_command": null,
+  "fix_steps": "vlan 20\n name HR",
+  "verification_command": "show vlan brief"
+}
+---
+2026-08-25T13:37:00.099364 - CASE:38
+{
+  "status": "NEEDS_INFO",
+  "root_cause": null,
+  "osi_layer": null,
+  "confidence": "Low",
+  "evidence": null,
+  "reason": "The output for 'show ip int brief' on R1 is empty and contains no interface entries. Without interface status, protocol state, or IP configuration data, it is not possible to determine why the ping is failing.",
+  "next_command": "show ip interface brief",
+  "fix_steps": null,
+  "verification_command": null
+}
+---
+2026-08-25T13:43:09.727537 - CASE:39
+{
+  "status": "DIAGNOSED",
+  "root_cause": "FastEthernet0/1 is configured with duplicate IP address 192.168.1.1, which conflicts with FastEthernet0/0 on the same device.",
+  "osi_layer": "Layer 3 (Network)",
+  "confidence": "High",
+  "evidence": "FastEthernet0/0 192.168.1.1 up up\nFastEthernet0/1 192.168.1.1 up up\nDuplicate address 192.168.1.1 on FastEthernet0/1",
+  "reason": "The output of 'show ip int brief' explicitly lists both FastEthernet0/0 and FastEthernet0/1 with IP address 192.168.1.1 and reports 'Duplicate address 192.168.1.1 on FastEthernet0/1'. Although the automated rule checker returned INSUFFICIENT_EVIDENCE due to unparsed interface structure, the raw CLI output unambiguously confirms the duplicate IP assignment.",
+  "next_command": null,
+  "fix_steps": "interface FastEthernet0/1\n no ip address",
+  "verification_command": "show ip interface brief"
+}
+---
+2026-08-25T15:12:42.096653 - CASE:40
+{
+  "status": "DIAGNOSED",
+  "root_cause": "VLAN 20 (HR) is missing from the VLAN database on switch SW-HR, preventing VLAN 20 traffic from being active on the trunk link to the core network.",
+  "osi_layer": "Layer 2 (Data Link)",
+  "confidence": "High",
+  "evidence": "SW-HR# show vlan brief lists VLANs 1, 10, 30, 40, 100 but does not list VLAN 20. SW-HR# show interfaces trunk shows 'Vlans allowed and active' on Fa0/24 as 1,10,30,40,100 (excluding VLAN 20).",
+  "reason": "The CLI evidence directly shows that VLAN 20 has not been created in the VLAN database on switch SW-HR. As a result, even though VLAN 20 is within the allowed range (1-100) on trunk interface Fa0/24, it is not active on the trunk, breaking connectivity between HR users and the HR server on VLAN 20.",
+  "next_command": null,
+  "fix_steps": "vlan 20\n name HR\n exit",
+  "verification_command": "show vlan brief"
+}
+---
+2026-08-25T15:16:11.519176 - CASE:38
+{
+  "status": "NEEDS_INFO",
+  "root_cause": null,
+  "osi_layer": null,
+  "confidence": "Low",
+  "evidence": null,
+  "reason": "The output for 'show ip int brief' returned no interface information. Without interface IP addresses, operational status, or routing data, it is not possible to determine why pings are failing.",
+  "next_command": "show ip interface brief",
+  "fix_steps": null,
+  "verification_command": null
+}
+---
+2026-08-25T15:16:26.928799 - CASE:38
+{
+  "status": "NEEDS_INFO",
+  "root_cause": null,
+  "osi_layer": null,
+  "confidence": "Low",
+  "evidence": null,
+  "reason": "The CLI output for 'show ip int brief' on R1 returned no interface data. Without interface status or addressing information, the root cause for the ping failure cannot be determined.",
+  "next_command": "show ip interface brief",
+  "fix_steps": null,
+  "verification_command": null
+}
+---
+2026-08-25T15:16:30.322978 - CASE:38
+{
+  "status": "NEEDS_INFO",
+  "root_cause": null,
+  "osi_layer": null,
+  "confidence": "Low",
+  "evidence": null,
+  "reason": "The output for 'show ip int brief' returned no interface details or IP configuration data on R1. Without interface status or IP addressing evidence, the cause of the ping failure cannot be determined.",
+  "next_command": "show ip interface brief",
+  "fix_steps": null,
+  "verification_command": null
+}
+---
+2026-08-25T15:19:53.446617 - CASE:38
+{
+  "status": "NEEDS_INFO",
+  "root_cause": null,
+  "osi_layer": null,
+  "confidence": "Low",
+  "evidence": null,
+  "reason": "The output for 'show ip int brief' on R1 is empty and provides no interface configuration or status details. Layer 1/2 interface details are required to begin troubleshooting the ping failure.",
+  "next_command": "show ip interface brief",
+  "fix_steps": null,
+  "verification_command": null
+}
+---
+2026-08-25T15:20:17.966523 - CASE:33
+{
+  "status": "DIAGNOSED",
+  "root_cause": "Router R1 lacks a route (or default route) to reach Server-B's remote network.",
+  "osi_layer": "Layer 3 (Network)",
+  "confidence": "High",
+  "evidence": "Gateway of last resort is not set\nC    192.168.10.0/24 is directly connected, GigabitEthernet0/0\nC    10.0.0.0/30 is directly connected, GigabitEthernet0/1",
+  "reason": "PC-A can reach its default gateway (192.168.10.1 on R1 Gi0/0), confirming local connectivity. However, R1's routing table only contains directly connected routes for 192.168.10.0/24 and 10.0.0.0/30 and has no default route configured. Consequently, R1 drops traffic destined for remote networks including Server-B. This is also supported by the rule finding GATEWAY_MISMATCH=DETECTED.",
+  "next_command": null,
+  "fix_steps": "ip route 0.0.0.0 0.0.0.0 10.0.0.2",
+  "verification_command": "show ip route"
+}
+---

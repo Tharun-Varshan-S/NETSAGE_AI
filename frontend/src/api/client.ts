@@ -143,3 +143,15 @@ export const fetchDashboardStats = async (): Promise<DashboardStats> => {
         throw new Error(err.message || 'Failed to load dashboard statistics.');
     }
 };
+
+export const submitForReview = async (id: number): Promise<Case> => {
+    try {
+        const res = await fetch(`${API_BASE}/cases/${id}/submit-review`, {
+            method: 'POST',
+            headers: getAuthHeaders()
+        });
+        return await handleResponse(res);
+    } catch (err: any) {
+        throw new Error(err.message || 'Failed to submit for review.');
+    }
+};

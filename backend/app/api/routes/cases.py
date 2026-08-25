@@ -56,3 +56,18 @@ def get_case(case_id: int, db: Session = Depends(get_db)):
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
     return case
+
+@router.post("/{case_id}/submit-review", response_model=CaseResponse)
+def submit_for_review(case_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    
+    # Only the creator (Junior) should typically submit it, but we can just enforce it
+    if current_user.role == "junior" and case.created_by_id != current_user.id:
+         raise HTTPException(status_code=403, detail="Not authorized to submit this case")
+         
+    case.diagnosis_status = "PENDING_REVIEW"
+    db.commit()
+    db.refresh(case)
+    return case

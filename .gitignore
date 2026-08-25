@@ -7,7 +7,6 @@
 # Python
 __pycache__/
 *.pyc
-.env
 .venv/
 venv/
 
@@ -16,3 +15,7 @@ node_modules/
 dist/
 build/
 *.db
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
+config.bat

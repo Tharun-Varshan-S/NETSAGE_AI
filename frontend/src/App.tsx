@@ -223,7 +223,8 @@ export default function App() {
               ) : (
                 <ReviewScreen 
                   caseId={activeCaseId} 
-                  onBack={() => handleMenuClick('diagnose')} 
+                  onBack={() => handleMenuClick('diagnose')}
+                  userRole={role || undefined}
                 />
               )
             )}

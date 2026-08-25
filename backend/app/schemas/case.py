@@ -41,6 +41,7 @@ class CaseCreate(BaseModel):
 
 class CaseResponse(CaseBase):
     id: int
+    diagnosis_status: str | None = None
     
     ai_root_cause: str | None = None
     ai_osi_layer: str | None = None

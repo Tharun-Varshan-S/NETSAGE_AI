@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchCase, diagnoseCase, submitReview, submitCommandOutput } from '../api/client';
+import { fetchCase, diagnoseCase, submitReview, submitCommandOutput, submitForReview } from '../api/client';
 import { 
   ArrowLeft, AlertTriangle, X, Terminal, 
   Sparkles, CheckCircle2, XCircle, PlayCircle, Loader2, Copy,
@@ -11,9 +11,10 @@ import type { Case } from '../types/case';
 interface ReviewScreenProps {
   caseId: number;
   onBack: () => void;
+  userRole?: string;
 }
 
-export default function ReviewScreen({ caseId, onBack }: ReviewScreenProps) {
+export default function ReviewScreen({ caseId, onBack, userRole }: ReviewScreenProps) {
   const queryClient = useQueryClient();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [copiedText, setCopiedText] = useState<string | null>(null);
@@ -125,6 +126,18 @@ export default function ReviewScreen({ caseId, onBack }: ReviewScreenProps) {
     },
     onError: (err: any) => {
       setErrorMsg(err.message || 'Failed to submit review.');
+    }
+  });
+
+  const submitForReviewMutation = useMutation({
+    mutationFn: () => submitForReview(caseId),
+    onSuccess: () => {
+      setErrorMsg(null);
+      queryClient.invalidateQueries({ queryKey: ['cases', caseId] });
+      queryClient.invalidateQueries({ queryKey: ['cases'] });
+    },
+    onError: (err: any) => {
+      setErrorMsg(err.message || 'Failed to submit for review.');
     }
   });
 
@@ -601,8 +614,44 @@ export default function ReviewScreen({ caseId, onBack }: ReviewScreenProps) {
           </div>
         )}
 
-        {/* Human Review */}
-        {caseData.diagnosis_status === 'DIAGNOSED' && !caseData.review && (
+        {/* Junior Submit For Review */}
+        {caseData.diagnosis_status === 'DIAGNOSED' && !caseData.review && userRole === 'junior' && (
+          <div className="card">
+            <div className="card-header bg-[var(--bg-secondary)]/50">
+              <h3 className="card-title flex items-center gap-2">
+                <Check size={15} className="text-[var(--accent)]" /> AI Diagnosis Complete
+              </h3>
+            </div>
+            <div className="card-body space-y-5">
+              <div className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-default)]">
+                <label className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide block mb-1.5">AI Diagnosis</label>
+                <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">{caseData.ai_root_cause}</p>
+              </div>
+              <div className="flex justify-end">
+                <button 
+                  onClick={() => submitForReviewMutation.mutate()}
+                  disabled={submitForReviewMutation.isPending}
+                  className="btn btn-primary"
+                >
+                  {submitForReviewMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : 'Submit to Senior for Review'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {caseData.diagnosis_status === 'PENDING_REVIEW' && !caseData.review && userRole === 'junior' && (
+          <div className="card border-[var(--info)]/20 bg-[var(--info)]/5 p-4 flex items-start gap-3">
+            <Loader2 size={18} className="text-[var(--info)] animate-spin" />
+            <div>
+              <p className="font-semibold text-[13px] text-[var(--text-primary)]">Pending Senior Review</p>
+              <p className="mt-1.5 text-[12px] text-[var(--text-tertiary)] leading-relaxed">This case has been submitted and is waiting for a Senior Engineer to review the diagnosis.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Human Review (Senior) */}
+        {caseData.diagnosis_status === 'PENDING_REVIEW' && !caseData.review && userRole === 'senior' && (
           <div className="card">
             <div className="card-header bg-[var(--bg-secondary)]/50">
               <h3 className="card-title flex items-center gap-2">
